@@ -6,6 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import {
   Sparkles,
   Loader2,
   Lock,
@@ -15,12 +24,20 @@ import {
   CheckCircle,
   Calendar,
   MessageSquare,
-  ArrowRight,
   Brain,
   Heart,
   Wind,
-  History
+  History,
+  TrendingUp,
+  ChevronRight
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -265,6 +282,63 @@ export default function MoodAnalyzer() {
                   </CardContent>
                 </Card>
 
+                {/* Mood Trend Chart */}
+                {user && moodHistory.length >= 2 && (
+                  <Card className="shadow-soft border-none bg-white/80 backdrop-blur-sm overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-md bg-primary/10">
+                          <TrendingUp className="w-4 h-4 text-primary" />
+                        </div>
+                        <CardTitle className="text-lg font-display">Mood Journey</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[200px] w-full mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={[...moodHistory].reverse()}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis
+                              dataKey="created_at"
+                              tickFormatter={(date) => new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              tick={{ fontSize: 10 }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              domain={[1, 10]}
+                              hide
+                            />
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload as MoodLog;
+                                  return (
+                                    <div className="bg-white p-2 shadow-card border border-muted rounded-lg text-xs">
+                                      <p className="font-semibold">{new Date(data.created_at).toLocaleDateString()}</p>
+                                      <p className="text-primary font-medium">Score: {data.mood_score}/10</p>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="mood_score"
+                              stroke="hsl(var(--primary))"
+                              strokeWidth={3}
+                              dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "#fff" }}
+                              activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
+                              animationDuration={1500}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Recent Reflections */}
                 {user && (
                   <div className="space-y-4">
@@ -290,30 +364,79 @@ export default function MoodAnalyzer() {
                       <div className="grid gap-4">
                         {moodHistory.map((entry) => {
                           const mood = getMoodLabel(entry.mood_score);
+                          const MoodIcon = mood.icon;
                           return (
-                            <Card key={entry.id} className="bg-white/40 backdrop-blur-sm border-muted/50 hover:border-primary/30 transition-all hover:shadow-soft group">
-                              <CardContent className="p-5">
-                                <div className="flex justify-between items-start mb-3">
-                                  <Badge className={`${mood.color} border-none shadow-sm`} variant="secondary">
-                                    {mood.label}
-                                  </Badge>
-                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(entry.created_at).toLocaleDateString()}
+                            <Dialog key={entry.id}>
+                              <DialogTrigger asChild>
+                                <Card className="bg-white/40 backdrop-blur-sm border-muted/50 hover:border-primary/30 transition-all hover:shadow-soft group cursor-pointer">
+                                  <CardContent className="p-5">
+                                    <div className="flex justify-between items-start mb-3">
+                                      <Badge className={`${mood.color} border-none shadow-sm`} variant="secondary">
+                                        {mood.label}
+                                      </Badge>
+                                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                                        <Calendar className="w-3 h-3" />
+                                        {new Date(entry.created_at).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                    <p className="text-sm text-foreground line-clamp-2 italic mb-3 text-muted-foreground group-hover:text-foreground transition-colors">
+                                      "{entry.mood_text}"
+                                    </p>
+                                    <div className="flex items-center justify-between pt-2 border-t border-muted/30">
+                                      <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        View Details
+                                      </div>
+                                      <ChevronRight className="w-4 h-4 text-primary opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <div className="flex items-center gap-3 mb-2">
+                                    <div className={`p-2 rounded-lg ${mood.color}`}>
+                                      <MoodIcon className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <DialogTitle className="text-xl font-display">Reflection Detail</DialogTitle>
+                                      <p className="text-sm text-muted-foreground">
+                                        {new Date(entry.created_at).toLocaleDateString(undefined, {
+                                          weekday: 'long',
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </DialogHeader>
+                                <div className="space-y-6 py-4">
+                                  <div className="space-y-2">
+                                    <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Your Thoughts</h4>
+                                    <div className="bg-muted/30 p-4 rounded-lg border border-muted italic text-foreground">
+                                      "{entry.mood_text}"
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Sparkles className="w-4 h-4 text-primary" />
+                                      <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">AI Insights & Strategies</h4>
+                                    </div>
+                                    <div className="bg-primary/5 p-4 rounded-lg border border-primary/10 text-foreground leading-relaxed whitespace-pre-wrap">
+                                      {entry.ai_response}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                                    <span className="text-sm font-medium">Mood Score</span>
+                                    <div className="flex items-center gap-3">
+                                      <Progress value={entry.mood_score * 10} className={`w-32 h-2 ${mood.barColor}`} />
+                                      <span className="text-sm font-bold">{entry.mood_score}/10</span>
+                                    </div>
                                   </div>
                                 </div>
-                              <p className="text-sm text-foreground line-clamp-2 italic mb-3 text-muted-foreground group-hover:text-foreground transition-colors">
-                                "{entry.mood_text}"
-                              </p>
-                              <div className="flex items-center justify-between pt-2 border-t border-muted/30">
-                                <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  AI Insight saved
-                                </div>
-                                <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                              </div>
-                              </CardContent>
-                            </Card>
+                              </DialogContent>
+                            </Dialog>
                           );
                         })}
                       </div>
