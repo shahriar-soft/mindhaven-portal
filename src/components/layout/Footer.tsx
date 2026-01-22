@@ -8,7 +8,7 @@ const productLinks = [
 ];
 
 const supportLinks = [
-  { to: "#", label: "Crisis Line" },
+  { to: "/#emergency-support", label: "Crisis Line" },
   { to: "#", label: "FAQ" },
   { to: "#", label: "Privacy Policy" },
   { to: "#", label: "Terms of Service" },
