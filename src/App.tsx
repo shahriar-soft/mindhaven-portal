@@ -4,12 +4,16 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import ScrollToTop from "./components/ScrollToTop";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MoodAnalyzer from "./pages/MoodAnalyzer";
 import Dashboard from "./pages/Dashboard";
 import Community from "./pages/Community";
+import Breathing from "./pages/Breathing";
+import WellnessTips from "./pages/WellnessTips";
+import SuccessStories from "./pages/SuccessStories";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,6 +25,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
@@ -28,6 +33,9 @@ const App = () => (
             <Route path="/mood-analyzer" element={<MoodAnalyzer />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/breathing" element={<Breathing />} />
+            <Route path="/wellness-tips" element={<WellnessTips />} />
+            <Route path="/success-stories" element={<SuccessStories />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
