@@ -9,9 +9,9 @@ const productLinks = [
 
 const supportLinks = [
   { to: "/#emergency-support", label: "Crisis Line" },
-  { to: "#", label: "FAQ" },
-  { to: "#", label: "Privacy Policy" },
-  { to: "#", label: "Terms of Service" },
+  { to: "/faq", label: "FAQ" },
+  { to: "/privacy-policy", label: "Privacy Policy" },
+  { to: "/terms-of-service", label: "Terms of Service" },
 ];
 
 export function Footer() {
