@@ -32,7 +32,7 @@ serve(async (req) => {
 
 Guidelines:
 - Be warm, understanding, and non-judgmental
-- Keep responses concise but meaningful (around 150-200 words)
+- Keep responses concise but meaningful
 - Focus on evidence-based techniques like mindfulness, breathing exercises, cognitive reframing
 - If the user expresses severe distress or mentions self-harm, gently encourage seeking professional help
 - End with an uplifting note
@@ -45,8 +45,11 @@ Also, analyze the mood and provide a score from 1-10 where:
 
 Format your response as JSON with this structure:
 {
-  "response": "Your empathetic response with 3 tips",
-  "moodScore": <number 1-10>
+  "insight": "Your empathetic acknowledgement of their feelings (1-2 sentences)",
+  "moodScore": <number 1-10>,
+  "emotions": ["Emotion1", "Emotion2"],
+  "tips": ["Tip 1", "Tip 2", "Tip 3"],
+  "closing": "An encouraging closing sentence"
 }`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -110,8 +113,11 @@ Format your response as JSON with this structure:
 
     return new Response(
       JSON.stringify({
-        aiResponse: parsedResponse.response,
+        aiResponse: parsedResponse.insight || parsedResponse.response,
         moodScore: parsedResponse.moodScore,
+        emotions: parsedResponse.emotions || [],
+        tips: parsedResponse.tips || [],
+        closing: parsedResponse.closing || ""
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
