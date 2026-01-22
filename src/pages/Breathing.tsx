@@ -14,7 +14,7 @@ export default function Breathing() {
   const [cycleCount, setCycleCount] = useState(0);
 
   useEffect(() => {
-    let timer: any;
+    let timer: NodeJS.Timeout;
 
     if (isActive) {
       timer = setInterval(() => {
