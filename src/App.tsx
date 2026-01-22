@@ -14,6 +14,9 @@ import Community from "./pages/Community";
 import Breathing from "./pages/Breathing";
 import WellnessTips from "./pages/WellnessTips";
 import SuccessStories from "./pages/SuccessStories";
+import FAQ from "./pages/FAQ";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +39,9 @@ const App = () => (
             <Route path="/breathing" element={<Breathing />} />
             <Route path="/wellness-tips" element={<WellnessTips />} />
             <Route path="/success-stories" element={<SuccessStories />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
