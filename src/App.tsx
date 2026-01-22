@@ -10,6 +10,9 @@ import Signup from "./pages/Signup";
 import MoodAnalyzer from "./pages/MoodAnalyzer";
 import Dashboard from "./pages/Dashboard";
 import Community from "./pages/Community";
+import Breathing from "./pages/Breathing";
+import WellnessTips from "./pages/WellnessTips";
+import SuccessStories from "./pages/SuccessStories";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ const App = () => (
             <Route path="/mood-analyzer" element={<MoodAnalyzer />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/breathing" element={<Breathing />} />
+            <Route path="/wellness-tips" element={<WellnessTips />} />
+            <Route path="/success-stories" element={<SuccessStories />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

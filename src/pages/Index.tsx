@@ -10,8 +10,8 @@ const features = [
     icon: Sun,
     title: "Wellness Tips",
     description: "Discover daily habits and small changes to boost your mood, improve focus, and build resilience.",
-    action: "View Community",
-    link: "/community",
+    action: "Explore Tips",
+    link: "/wellness-tips",
     color: "text-warning",
     bgColor: "bg-warning/10",
   },
@@ -19,8 +19,8 @@ const features = [
     icon: Wind,
     title: "Breathing Exercises",
     description: "Guided sessions ranging from 1 to 10 minutes to help you reduce anxiety and regain composure quickly.",
-    action: "Start AI Check-in",
-    link: "/mood-analyzer",
+    action: "Start Breathing",
+    link: "/breathing",
     color: "text-primary",
     bgColor: "bg-primary/10",
   },
@@ -237,13 +237,13 @@ export default function Index() {
                 <div className="grid sm:grid-cols-2 gap-4 pt-4">
                   <div className="p-4 rounded-xl bg-muted/50 border border-border">
                     <p className="font-bold text-lg">Emergency Services</p>
-                    <p className="text-primary text-2xl font-bold">911</p>
+                    <p className="text-primary text-2xl font-bold">999</p>
                     <p className="text-xs text-muted-foreground">Available for immediate emergencies</p>
                   </div>
                   <div className="p-4 rounded-xl bg-muted/50 border border-border">
                     <p className="font-bold text-lg">Crisis Text Line</p>
                     <p className="text-primary text-2xl font-bold">741741</p>
-                    <p className="text-xs text-muted-foreground">Text HOME to connect with a Counselor</p>
+                    <p className="text-xs text-muted-foreground">Free, 24/7 confidential text support. Text HOME to connect with a Counselor</p>
                   </div>
                 </div>
               </div>
@@ -267,7 +267,7 @@ export default function Index() {
                 <Link to="/signup">Join the Community</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="h-12 px-8">
-                <Link to="/community">Read Success Stories</Link>
+                <Link to="/success-stories">Read Success Stories</Link>
               </Button>
             </div>
           </div>
