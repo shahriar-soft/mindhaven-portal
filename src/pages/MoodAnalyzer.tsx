@@ -1,14 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, Lock, Pencil, Cpu, Lightbulb, CheckCircle } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  Lock,
+  Pencil,
+  Cpu,
+  Lightbulb,
+  CheckCircle,
+  History,
+  TrendingUp,
+  Quote,
+  MessageSquare,
+  ArrowRight
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { format } from "date-fns";
 
 const analysisSteps = [
   { icon: Pencil, label: "Input Thoughts", description: "Waiting for you to type..." },
@@ -16,16 +39,58 @@ const analysisSteps = [
   { icon: Lightbulb, label: "Personalized Insights", description: "Strategies & Support" },
 ];
 
+const journalingPrompts = [
+  "How has your energy level been today?",
+  "What's one thing that made you smile recently?",
+  "Is there anything specific weighing on your mind?",
+  "What are you looking forward to this week?",
+];
+
+const quotes = [
+  "Your feelings are valid, and you are not alone.",
+  "Taking time for yourself is not selfish, it's necessary.",
+  "Every small step forward is progress.",
+  "Be patient with yourself. Growth takes time.",
+  "You've survived 100% of your hardest days so far."
+];
+
+interface AIStructuredResponse {
+  insight: string;
+  moodScore: number;
+  emotions: string[];
+  tips: string[];
+  closing: string;
+}
+
 export default function MoodAnalyzer() {
   const [moodText, setMoodText] = useState("");
-  const [aiResponse, setAiResponse] = useState<string | null>(null);
-  const [moodScore, setMoodScore] = useState<number | null>(null);
+  const [aiResponse, setAiResponse] = useState<AIStructuredResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [history, setHistory] = useState<any[]>([]);
+  const [randomQuote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)]);
   
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      fetchHistory();
+    }
+  }, [user]);
+
+  const fetchHistory = async () => {
+    const { data, error } = await supabase
+      .from("mood_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!error && data) {
+      setHistory(data);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!user) {
@@ -50,7 +115,6 @@ export default function MoodAnalyzer() {
     setIsAnalyzing(true);
     setCurrentStep(1);
     setAiResponse(null);
-    setMoodScore(null);
 
     try {
       const { data, error } = await supabase.functions.invoke("analyze-mood", {
@@ -62,15 +126,16 @@ export default function MoodAnalyzer() {
       }
 
       setCurrentStep(2);
-      setAiResponse(data.aiResponse);
-      setMoodScore(data.moodScore);
+      setAiResponse(data);
 
       // Save to mood_logs
       const { error: saveError } = await supabase.from("mood_logs").insert({
         user_id: user.id,
         mood_text: moodText.trim(),
-        ai_response: data.aiResponse,
+        ai_response: data.insight,
         mood_score: data.moodScore,
+        emotions: data.emotions,
+        tips: data.tips,
       });
 
       if (saveError) {
@@ -80,6 +145,7 @@ export default function MoodAnalyzer() {
           title: "Mood logged!",
           description: "Your entry has been saved to your journey.",
         });
+        fetchHistory();
       }
     } catch (error) {
       console.error("Error analyzing mood:", error);
@@ -101,6 +167,11 @@ export default function MoodAnalyzer() {
     return { label: "Thriving", color: "bg-success text-success-foreground" };
   };
 
+  const chartData = [...history].reverse().map(log => ({
+    date: format(new Date(log.created_at), "MMM d"),
+    score: log.mood_score
+  }));
+
   return (
     <Layout>
       <div className="min-h-[calc(100vh-8rem)] py-12">
@@ -108,10 +179,10 @@ export default function MoodAnalyzer() {
         <div className="absolute top-16 left-0 right-0 h-32 gradient-calm opacity-50 -z-10" />
 
         <div className="container mx-auto px-4">
-          <div className="max-w-5xl mx-auto">
-            <div className="grid lg:grid-cols-5 gap-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-3 gap-8">
               {/* Main Input Area */}
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-2 space-y-6">
                 <Card className="shadow-card">
                   <CardHeader>
                     <Badge variant="secondary" className="w-fit mb-2">
@@ -124,15 +195,31 @@ export default function MoodAnalyzer() {
                       Share your thoughts, worries, or joys. Our AI is here to listen, analyze your mood, and suggest personalized coping strategies.
                     </p>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
+                    {/* Journaling Prompts */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {journalingPrompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => setMoodText(prompt)}
+                          className="text-left p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm text-muted-foreground hover:text-primary group"
+                        >
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" />
+                            <span>{prompt}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
                     <div className="relative">
                       <Textarea
                         placeholder="I've been feeling a bit overwhelmed because..."
                         value={moodText}
                         onChange={(e) => {
                           setMoodText(e.target.value);
-                          if (!isAnalyzing && currentStep === 0) {
-                            setCurrentStep(e.target.value.length > 0 ? 0 : 0);
+                          if (!isAnalyzing && currentStep !== 0) {
+                            setCurrentStep(0);
                           }
                         }}
                         className="min-h-[200px] resize-none text-base"
@@ -144,7 +231,7 @@ export default function MoodAnalyzer() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Lock className="w-4 h-4" />
                         Your entries are private & anonymous
@@ -152,7 +239,7 @@ export default function MoodAnalyzer() {
                       <Button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || !moodText.trim()}
-                        className="gradient-primary border-0"
+                        className="gradient-primary border-0 w-full sm:w-auto"
                       >
                         {isAnalyzing ? (
                           <>
@@ -169,15 +256,88 @@ export default function MoodAnalyzer() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Results Display */}
+                {aiResponse && (
+                  <Card className="shadow-card border-primary/20 animate-in fade-in slide-in-from-bottom-4">
+                    <CardHeader className="bg-primary/5">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 font-display">
+                          <Sparkles className="w-5 h-5 text-primary" />
+                          AI Insights
+                        </CardTitle>
+                        <Badge className={getMoodLabel(aiResponse.moodScore).color}>
+                          {getMoodLabel(aiResponse.moodScore).label} ({aiResponse.moodScore}/10)
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-6">
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                          {aiResponse.emotions.map((emotion) => (
+                            <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize">
+                              {emotion}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                          {aiResponse.insight}
+                        </p>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <Lightbulb className="w-4 h-4 text-warning" />
+                          Actionable Strategies
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {aiResponse.tips.map((tip, i) => (
+                            <div key={i} className="p-4 rounded-xl bg-muted/50 text-sm border hover:border-primary/30 transition-colors">
+                              <span className="font-bold text-primary mr-2">{i + 1}.</span>
+                              {tip}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t">
+                        <div className="flex items-start gap-3 bg-success/5 p-4 rounded-xl italic text-success">
+                          <Quote className="w-5 h-5 flex-shrink-0" />
+                          <p className="text-sm">{aiResponse.closing}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
 
               {/* Sidebar */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="space-y-6">
+                {!user && (
+                  <Card className="shadow-soft bg-primary text-primary-foreground overflow-hidden relative">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                    <CardHeader>
+                      <CardTitle className="text-xl font-display">Track Your Journey</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-primary-foreground/90 leading-relaxed">
+                        Sign in to save your mood logs, track your emotional trends over time, and see your personal growth.
+                      </p>
+                      <Button asChild variant="secondary" className="w-full bg-white text-primary hover:bg-white/90">
+                        <Link to="/login">
+                          Join MindHaven
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Analysis Status */}
                 <Card className="shadow-soft">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-display">Analysis Status</CardTitle>
+                      <CardTitle className="text-lg font-display text-primary">Analysis Status</CardTitle>
                       <div className={`w-3 h-3 rounded-full ${aiResponse ? "bg-success" : "bg-muted"}`} />
                     </div>
                   </CardHeader>
@@ -196,7 +356,7 @@ export default function MoodAnalyzer() {
                               <step.icon className="w-4 h-4" />
                             )}
                           </div>
-                          <div className={index === currentStep && isAnalyzing ? "border-l-2 border-primary pl-3 -ml-3" : ""}>
+                          <div>
                             <p className={`font-medium text-sm ${index <= currentStep ? "text-foreground" : "text-muted-foreground"}`}>
                               {step.label}
                             </p>
@@ -208,35 +368,102 @@ export default function MoodAnalyzer() {
                   </CardContent>
                 </Card>
 
-                {/* Results Card */}
-                <Card className="shadow-soft">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg font-display">Preview Results</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {aiResponse && moodScore ? (
+                {/* Mood Trend Chart */}
+                {user && history.length > 1 && (
+                  <Card className="shadow-soft">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-display flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-primary" />
+                        Your Trend
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[200px] w-full mt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis
+                              dataKey="date"
+                              fontSize={10}
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fill: '#888' }}
+                            />
+                            <YAxis
+                              domain={[0, 10]}
+                              fontSize={10}
+                              tickLine={false}
+                              axisLine={false}
+                              tick={{ fill: '#888' }}
+                              width={20}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                borderRadius: '12px',
+                                border: 'none',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                fontSize: '12px'
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="score"
+                              stroke="#0EA5E9"
+                              strokeWidth={3}
+                              dot={{ r: 4, fill: '#0EA5E9', strokeWidth: 2, stroke: '#fff' }}
+                              activeDot={{ r: 6, strokeWidth: 0 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Recent History */}
+                {user && history.length > 0 && (
+                  <Card className="shadow-soft">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-display flex items-center gap-2">
+                        <History className="w-5 h-5 text-primary" />
+                        Recent Logs
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Badge className={getMoodLabel(moodScore).color}>
-                            {getMoodLabel(moodScore).label}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">Score: {moodScore}/10</span>
-                        </div>
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                          {aiResponse}
-                        </p>
+                        {history.slice(0, 3).map((log) => (
+                          <div key={log.id} className="text-sm p-3 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 transition-all">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                {format(new Date(log.created_at), "MMM d, h:mm a")}
+                              </span>
+                              <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getMoodLabel(log.mood_score).color} border-0 text-white`}>
+                                {log.mood_score}/10
+                              </Badge>
+                            </div>
+                            <p className="line-clamp-2 text-xs text-muted-foreground italic">
+                              "{log.mood_text}"
+                            </p>
+                          </div>
+                        ))}
+                        <Button asChild variant="ghost" size="sm" className="w-full text-primary hover:text-primary/80 hover:bg-primary/5">
+                          <Link to="/dashboard">
+                            View Full Journey
+                            <ArrowRight className="ml-2 w-4 h-4" />
+                          </Link>
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className="w-12 h-12 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                          <Sparkles className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                        <p className="font-medium text-sm">Insights Await</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Once you share your feelings, your personalized AI insights and coping strategies will appear here.
-                        </p>
-                      </div>
-                    )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Mindfulness Quote */}
+                <Card className="shadow-soft bg-calm/10 border-none">
+                  <CardContent className="p-6">
+                    <Quote className="w-8 h-8 text-primary/20 mb-2" />
+                    <p className="text-sm font-medium text-primary-foreground/80 leading-relaxed italic">
+                      "{randomQuote}"
+                    </p>
                   </CardContent>
                 </Card>
               </div>
