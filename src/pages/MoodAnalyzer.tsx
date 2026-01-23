@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Sparkles,
   Loader2,
@@ -16,12 +17,17 @@ import {
   TrendingUp,
   Quote,
   MessageSquare,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  XCircle,
+  Copy,
+  Check
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, Link } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   LineChart,
   Line,
@@ -54,6 +60,23 @@ const quotes = [
   "You've survived 100% of your hardest days so far."
 ];
 
+const emotionEmojis: Record<string, string> = {
+  happy: "😊",
+  sad: "😔",
+  anxious: "😰",
+  stressed: "😫",
+  overwhelmed: "🤯",
+  calm: "😌",
+  excited: "🤩",
+  angry: "😠",
+  frustrated: "😤",
+  lonely: "👤",
+  hopeful: "✨",
+  tired: "😴",
+  grateful: "🙏",
+  thoughtful: "🤔",
+};
+
 interface AIStructuredResponse {
   insight: string;
   moodScore: number;
@@ -69,6 +92,8 @@ export default function MoodAnalyzer() {
   const [currentStep, setCurrentStep] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
   const [randomQuote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)]);
+  const [visiblePrompts, setVisiblePrompts] = useState<string[]>([]);
+  const [isCopied, setIsCopied] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -78,7 +103,13 @@ export default function MoodAnalyzer() {
     if (user) {
       fetchHistory();
     }
+    shufflePrompts();
   }, [user]);
+
+  const shufflePrompts = () => {
+    const shuffled = [...journalingPrompts].sort(() => 0.5 - Math.random());
+    setVisiblePrompts(shuffled.slice(0, 2));
+  };
 
   const fetchHistory = async () => {
     const { data, error } = await supabase
@@ -89,6 +120,24 @@ export default function MoodAnalyzer() {
 
     if (!error && data) {
       setHistory(data);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      toast({
+        title: "Copied!",
+        description: "Insight copied to clipboard.",
+      });
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -197,22 +246,36 @@ export default function MoodAnalyzer() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {/* Journaling Prompts */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {journalingPrompts.map((prompt) => (
-                        <button
-                          key={prompt}
-                          onClick={() => setMoodText(prompt)}
-                          className="text-left p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm text-muted-foreground hover:text-primary group"
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggested Prompts</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={shufflePrompts}
+                          className="h-7 text-xs text-primary hover:text-primary/80"
                         >
-                          <div className="flex items-center gap-2">
-                            <MessageSquare className="w-4 h-4" />
-                            <span>{prompt}</span>
-                          </div>
-                        </button>
-                      ))}
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Refresh
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {visiblePrompts.map((prompt) => (
+                          <button
+                            key={prompt}
+                            onClick={() => setMoodText(prompt)}
+                            className="text-left p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm text-muted-foreground hover:text-primary group animate-in fade-in duration-500"
+                          >
+                            <div className="flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4" />
+                              <span>{prompt}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="relative">
+                    <div className="relative group">
                       <Textarea
                         placeholder="I've been feeling a bit overwhelmed because..."
                         value={moodText}
@@ -222,13 +285,28 @@ export default function MoodAnalyzer() {
                             setCurrentStep(0);
                           }
                         }}
-                        className="min-h-[200px] resize-none text-base"
+                        className="min-h-[200px] resize-none text-base transition-all focus:shadow-md"
                         maxLength={2000}
                         disabled={isAnalyzing}
                       />
-                      <span className="absolute bottom-3 right-3 text-xs text-muted-foreground">
-                        {moodText.length}/2000
-                      </span>
+                      <div className="absolute bottom-3 right-3 flex items-center gap-3">
+                        {moodText && !isAnalyzing && (
+                          <button
+                            onClick={() => setMoodText("")}
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                            title="Clear text"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <span className={`text-xs font-medium ${
+                          moodText.length > 1800 ? "text-destructive" :
+                          moodText.length > 1500 ? "text-warning" :
+                          "text-muted-foreground"
+                        }`}>
+                          {moodText.length}/2000
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -260,29 +338,55 @@ export default function MoodAnalyzer() {
                 {/* Results Display */}
                 {aiResponse && (
                   <Card className="shadow-card border-primary/20 animate-in fade-in slide-in-from-bottom-4">
-                    <CardHeader className="bg-primary/5">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 font-display">
-                          <Sparkles className="w-5 h-5 text-primary" />
-                          AI Insights
-                        </CardTitle>
-                        <Badge className={getMoodLabel(aiResponse.moodScore).color}>
-                          {getMoodLabel(aiResponse.moodScore).label} ({aiResponse.moodScore}/10)
-                        </Badge>
+                    <CardHeader className="bg-primary/5 pb-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2 font-display">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                            AI Insights
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(aiResponse.insight)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {isCopied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                            <Badge className={getMoodLabel(aiResponse.moodScore).color}>
+                              {getMoodLabel(aiResponse.moodScore).label}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-medium">
+                            <span className="text-muted-foreground">Mood Score</span>
+                            <span className="text-primary">{aiResponse.moodScore}/10</span>
+                          </div>
+                          <Progress
+                            value={aiResponse.moodScore * 10}
+                            className="h-2"
+                          />
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-6">
                       <div className="space-y-4">
                         <div className="flex flex-wrap gap-2">
                           {aiResponse.emotions.map((emotion) => (
-                            <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize">
+                            <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize flex items-center gap-1">
+                              <span>{emotionEmojis[emotion.toLowerCase()] || "✨"}</span>
                               {emotion}
                             </Badge>
                           ))}
                         </div>
-                        <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                          {aiResponse.insight}
-                        </p>
+                        <div className="relative">
+                          <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                            {aiResponse.insight}
+                          </p>
+                        </div>
                       </div>
 
                       <div className="space-y-4 pt-4 border-t">
@@ -333,135 +437,140 @@ export default function MoodAnalyzer() {
                   </Card>
                 )}
 
-                {/* Analysis Status */}
-                <Card className="shadow-soft">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-display text-primary">Analysis Status</CardTitle>
-                      <div className={`w-3 h-3 rounded-full ${aiResponse ? "bg-success" : "bg-muted"}`} />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {analysisSteps.map((step, index) => (
-                        <div key={step.label} className="flex items-start gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            index < currentStep ? "bg-success text-success-foreground" :
-                            index === currentStep && isAnalyzing ? "bg-primary text-primary-foreground animate-pulse-soft" :
-                            "bg-muted text-muted-foreground"
-                          }`}>
-                            {index < currentStep ? (
-                              <CheckCircle className="w-4 h-4" />
-                            ) : (
-                              <step.icon className="w-4 h-4" />
-                            )}
-                          </div>
-                          <div>
-                            <p className={`font-medium text-sm ${index <= currentStep ? "text-foreground" : "text-muted-foreground"}`}>
-                              {step.label}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{step.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Mood Trend Chart */}
-                {user && history.length > 1 && (
-                  <Card className="shadow-soft">
+                {/* Analysis Status - Only show when analyzing */}
+                {isAnalyzing && (
+                  <Card className="shadow-soft border-primary/20 animate-in fade-in zoom-in-95">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg font-display flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-primary" />
-                        Your Trend
+                      <CardTitle className="text-lg font-display text-primary flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analyzing...
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="h-[200px] w-full mt-2">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis
-                              dataKey="date"
-                              fontSize={10}
-                              tickLine={false}
-                              axisLine={false}
-                              tick={{ fill: '#888' }}
-                            />
-                            <YAxis
-                              domain={[0, 10]}
-                              fontSize={10}
-                              tickLine={false}
-                              axisLine={false}
-                              tick={{ fill: '#888' }}
-                              width={20}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                borderRadius: '12px',
-                                border: 'none',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                fontSize: '12px'
-                              }}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="score"
-                              stroke="#0EA5E9"
-                              strokeWidth={3}
-                              dot={{ r: 4, fill: '#0EA5E9', strokeWidth: 2, stroke: '#fff' }}
-                              activeDot={{ r: 6, strokeWidth: 0 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
+                      <div className="space-y-4">
+                        {analysisSteps.map((step, index) => (
+                          <div key={step.label} className="flex items-start gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              index < currentStep ? "bg-success text-success-foreground" :
+                              index === currentStep ? "bg-primary text-primary-foreground animate-pulse-soft" :
+                              "bg-muted text-muted-foreground"
+                            }`}>
+                              {index < currentStep ? (
+                                <CheckCircle className="w-4 h-4" />
+                              ) : (
+                                <step.icon className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div>
+                              <p className={`font-medium text-sm ${index <= currentStep ? "text-foreground" : "text-muted-foreground"}`}>
+                                {step.label}
+                              </p>
+                              <p className="text-xs text-muted-foreground">{step.description}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
                 )}
 
-                {/* Recent History */}
-                {user && history.length > 0 && (
+                {/* My Journey - Consolidated History and Trend */}
+                {user && (
                   <Card className="shadow-soft">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-lg font-display flex items-center gap-2">
-                        <History className="w-5 h-5 text-primary" />
-                        Recent Logs
-                      </CardTitle>
+                      <CardTitle className="text-lg font-display text-primary">My Journey</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {history.slice(0, 3).map((log) => (
-                          <div key={log.id} className="text-sm p-3 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 transition-all">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                                {format(new Date(log.created_at), "MMM d, h:mm a")}
-                              </span>
-                              <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getMoodLabel(log.mood_score).color} border-0 text-white`}>
-                                {log.mood_score}/10
-                              </Badge>
+                      {history.length > 0 ? (
+                        <Tabs defaultValue="history" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2 mb-4">
+                            <TabsTrigger value="history" className="text-xs">History</TabsTrigger>
+                            <TabsTrigger value="trend" className="text-xs" disabled={history.length < 2}>Trend</TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="history" className="space-y-4 mt-0 animate-in fade-in duration-300">
+                            <div className="space-y-3">
+                              {history.slice(0, 3).map((log) => (
+                                <div key={log.id} className="text-sm p-3 rounded-xl bg-muted/30 border border-transparent hover:border-primary/20 transition-all">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                      {format(new Date(log.created_at), "MMM d, h:mm a")}
+                                    </span>
+                                    <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getMoodLabel(log.mood_score).color} border-0 text-white`}>
+                                      {log.mood_score}/10
+                                    </Badge>
+                                  </div>
+                                  <p className="line-clamp-2 text-xs text-muted-foreground italic">
+                                    "{log.mood_text}"
+                                  </p>
+                                </div>
+                              ))}
                             </div>
-                            <p className="line-clamp-2 text-xs text-muted-foreground italic">
-                              "{log.mood_text}"
-                            </p>
-                          </div>
-                        ))}
-                        <Button asChild variant="ghost" size="sm" className="w-full text-primary hover:text-primary/80 hover:bg-primary/5">
-                          <Link to="/dashboard">
-                            View Full Journey
-                            <ArrowRight className="ml-2 w-4 h-4" />
-                          </Link>
-                        </Button>
-                      </div>
+                            <Button asChild variant="ghost" size="sm" className="w-full text-primary hover:text-primary/80 hover:bg-primary/5 text-xs">
+                              <Link to="/dashboard">
+                                View Full Journey
+                                <ArrowRight className="ml-2 w-4 h-4" />
+                              </Link>
+                            </Button>
+                          </TabsContent>
+
+                          <TabsContent value="trend" className="mt-0 animate-in fade-in duration-300">
+                            <div className="h-[180px] w-full mt-2">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chartData}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                  <XAxis
+                                    dataKey="date"
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: '#888' }}
+                                  />
+                                  <YAxis
+                                    domain={[0, 10]}
+                                    fontSize={10}
+                                    tickLine={false}
+                                    axisLine={false}
+                                    tick={{ fill: '#888' }}
+                                    width={20}
+                                  />
+                                  <Tooltip
+                                    contentStyle={{
+                                      borderRadius: '12px',
+                                      border: 'none',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                      fontSize: '12px'
+                                    }}
+                                  />
+                                  <Line
+                                    type="monotone"
+                                    dataKey="score"
+                                    stroke="#0EA5E9"
+                                    strokeWidth={3}
+                                    dot={{ r: 4, fill: '#0EA5E9', strokeWidth: 2, stroke: '#fff' }}
+                                    activeDot={{ r: 6, strokeWidth: 0 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      ) : (
+                        <div className="py-6 text-center space-y-2">
+                          <History className="w-8 h-8 text-muted-foreground/30 mx-auto" />
+                          <p className="text-sm text-muted-foreground">Your journey begins here.</p>
+                          <p className="text-xs text-muted-foreground/70">Analyze your first mood to see trends.</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
 
                 {/* Mindfulness Quote */}
-                <Card className="shadow-soft bg-calm/10 border-none">
+                <Card className="shadow-soft bg-primary/5 border-none">
                   <CardContent className="p-6">
                     <Quote className="w-8 h-8 text-primary/20 mb-2" />
-                    <p className="text-sm font-medium text-primary-foreground/80 leading-relaxed italic">
+                    <p className="text-sm font-medium text-primary/80 leading-relaxed italic">
                       "{randomQuote}"
                     </p>
                   </CardContent>
