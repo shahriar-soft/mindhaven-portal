@@ -290,22 +290,33 @@ export default function MoodAnalyzer() {
               {/* Main Input Area */}
               <div className="lg:col-span-2 space-y-6">
                 <Card className="shadow-card">
-                  <CardHeader>
-                    <Badge variant="secondary" className="w-fit mb-2">
-                      AI MOOD CHECK-IN
-                    </Badge>
-                    <CardTitle className="text-2xl lg:text-3xl font-display">
-                      How are you feeling today?
-                    </CardTitle>
-                    <p className="text-muted-foreground leading-relaxed">
-                      Think of this as your safe space to vent, celebrate, or just reflect. Our AI helps you find clarity when things feel cloudy.
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center">
+                        <BrainCircuit className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/10 text-[10px] uppercase tracking-widest px-2 py-0">
+                          AI Insight
+                        </Badge>
+                        <CardTitle className="text-2xl font-display mt-0.5">
+                          Daily Reflection
+                        </CardTitle>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+                      Your safe space for clarity. Share your thoughts, and let AI help you navigate your emotional landscape.
                     </p>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-8">
                     {/* Mood Selector */}
-                    <div className="space-y-3">
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">How are you feeling?</span>
-                      <div className="flex flex-wrap gap-3">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-muted" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Select Your Current Vibe</span>
+                        <div className="h-px flex-1 bg-muted" />
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-4">
                         {moodOptions.map((mood) => (
                           <button
                             key={mood.label}
@@ -323,33 +334,28 @@ export default function MoodAnalyzer() {
                       </div>
                     </div>
 
-                    {/* Journaling Prompts - Collapsed if user is typing */}
-                    <div className={`space-y-3 transition-all duration-300 overflow-hidden ${moodText.length > 50 ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"}`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Need inspiration?</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => shufflePrompts(selectedMood ? moodOptions.find(m => m.label === selectedMood)?.prompts : undefined)}
-                          className="h-7 text-xs text-primary hover:text-primary/80"
-                        >
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                          Refresh
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Journaling Prompts - More compact and subtle */}
+                    <div className={`transition-all duration-300 overflow-hidden ${moodText.length > 40 ? "max-h-0 opacity-0 mb-0" : "max-h-20 opacity-100 mb-6"}`}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mr-1">Prompts:</span>
                         {visiblePrompts.map((prompt) => (
                           <button
                             key={prompt}
                             onClick={() => setMoodText(prompt)}
-                            className="text-left p-3 rounded-xl border border-primary/10 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-primary group animate-in fade-in duration-500"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-xs text-muted-foreground hover:text-primary hover:border-primary/30 transition-all group animate-in fade-in duration-500"
                           >
-                            <div className="flex items-center gap-3">
-                              <MessageSquare className="w-4 h-4 text-primary/50 group-hover:text-primary" />
-                              <span className="leading-tight">{prompt}</span>
-                            </div>
+                            <MessageSquare className="w-3 h-3 text-primary/40 group-hover:text-primary" />
+                            {prompt}
                           </button>
                         ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => shufflePrompts(selectedMood ? moodOptions.find(m => m.label === selectedMood)?.prompts : undefined)}
+                          className="h-7 w-7 p-0 rounded-full hover:bg-primary/5 hover:text-primary"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
 
@@ -492,22 +498,22 @@ export default function MoodAnalyzer() {
                               </Badge>
                             ))}
                           </div>
-                          <div className="relative bg-muted/30 p-5 rounded-2xl border border-muted-foreground/10">
-                            <Quote className="absolute -top-3 -left-3 w-8 h-8 text-primary/10" />
-                            <p className="text-foreground leading-relaxed whitespace-pre-wrap italic">
+                          <div className="relative bg-muted/20 p-6 rounded-3xl border border-primary/5 group transition-all hover:bg-muted/30">
+                            <Quote className="absolute -top-3 -left-3 w-8 h-8 text-primary/20 transition-transform group-hover:scale-110" />
+                            <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap text-lg font-medium tracking-tight">
                               {aiResponse.insight}
                             </p>
                           </div>
                         </div>
 
-                        <div className="md:col-span-2 space-y-4 animate-in fade-in slide-in-from-right-4 duration-700">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-semibold text-sm flex items-center gap-2">
-                              <Lightbulb className="w-4 h-4 text-warning" />
+                        <div className="md:col-span-2 space-y-5 animate-in fade-in slide-in-from-right-4 duration-700">
+                          <div className="flex items-center justify-between px-1">
+                            <h4 className="font-bold text-[10px] tracking-widest uppercase flex items-center gap-2 text-primary">
+                              <Lightbulb className="w-3.5 h-3.5 text-warning animate-pulse-soft" />
                               Personal Strategies
                             </h4>
                           </div>
-                          <div className="space-y-3">
+                          <div className="space-y-3.5">
                             {aiResponse.tips.map((tip, i) => (
                               <button
                                 key={i}
@@ -520,17 +526,21 @@ export default function MoodAnalyzer() {
                                     });
                                   }
                                 }}
-                                className={`w-full p-3 rounded-xl text-left text-xs border transition-all relative group ${
+                                className={`w-full p-4 rounded-2xl text-left text-sm border transition-all relative group ${
                                   activeFocus === i
-                                    ? "border-primary bg-primary/5 shadow-sm"
-                                    : "bg-muted/50 hover:border-primary/30"
+                                    ? "border-primary bg-primary/5 shadow-md scale-[1.02]"
+                                    : "bg-background border-muted-foreground/10 hover:border-primary/40 hover:shadow-sm"
                                 }`}
                               >
-                                <div className="flex items-start gap-3">
-                                  <span className={`font-bold mt-0.5 ${activeFocus === i ? "text-primary" : "text-muted-foreground"}`}>
-                                    {i + 1}.
+                                <div className="flex items-start gap-4">
+                                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    activeFocus === i ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
+                                  }`}>
+                                    <span className="text-xs font-bold">{i + 1}</span>
+                                  </div>
+                                  <span className={`leading-relaxed font-medium ${activeFocus === i ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+                                    {tip}
                                   </span>
-                                  <span className="leading-relaxed">{tip}</span>
                                 </div>
                               </button>
                             ))}
@@ -548,66 +558,69 @@ export default function MoodAnalyzer() {
                   </Card>
                 )}
 
-                <Card className="shadow-soft border-none bg-primary/5">
-                  <CardContent className="p-6">
-                    <h3 className="text-sm font-semibold mb-4 flex items-center gap-2 text-primary">
-                      <HelpCircle className="w-4 h-4" />
-                      Understanding AI Analysis
-                    </h3>
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="privacy" className="border-primary/10">
-                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
-                          <div className="flex items-center gap-2">
-                            <ShieldCheck className="w-3.5 h-3.5 text-success" />
-                            Is my data private?
+                <div className="px-1 pt-4">
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="ai-info" className="border-none">
+                      <AccordionTrigger className="text-xs text-muted-foreground hover:no-underline py-2 hover:text-primary transition-colors">
+                        <div className="flex items-center gap-2">
+                          <HelpCircle className="w-3.5 h-3.5" />
+                          How does the AI work & is it private?
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="pt-2 pb-4">
+                        <div className="grid sm:grid-cols-3 gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-success uppercase tracking-wider">
+                              <ShieldCheck className="w-3 h-3" />
+                              Private
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Entries are encrypted and private. No humans read your journals.
+                            </p>
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
-                          Absolutely. Your entries are private and encrypted. We use them only to generate your personal insights. No humans read your journals, and your data is never sold.
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="how-it-works" className="border-primary/10">
-                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
-                          <div className="flex items-center gap-2">
-                            <BrainCircuit className="w-3.5 h-3.5 text-primary" />
-                            How does it work?
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-wider">
+                              <BrainCircuit className="w-3 h-3" />
+                              Smart
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Uses NLP to identify emotional patterns and nuances.
+                            </p>
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
-                          Our AI uses Natural Language Processing to understand the nuances of your text, identifying emotions and patterns that might be hard to see in the moment.
-                        </AccordionContent>
-                      </AccordionItem>
-                      <AccordionItem value="accuracy" className="border-none">
-                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
-                          <div className="flex items-center gap-2">
-                            <Info className="w-3.5 h-3.5 text-warning" />
-                            Is this medical advice?
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 text-[10px] font-bold text-warning uppercase tracking-wider">
+                              <Info className="w-3 h-3" />
+                              Supportive
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              A wellness tool, not a substitute for professional care.
+                            </p>
                           </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
-                          No. MindHaven is a supportive wellness tool for self-reflection. It's not a substitute for professional mental health care or diagnosis.
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  </CardContent>
-                </Card>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
               </div>
 
               {/* Sidebar */}
               <div className="space-y-6">
                 {!user && (
-                  <Card className="shadow-soft bg-muted/30 border-primary/10 overflow-hidden relative">
-                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+                  <Card className="shadow-soft bg-gradient-to-br from-primary/5 via-transparent to-primary/5 border-primary/10 overflow-hidden relative group">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors" />
                     <CardHeader>
-                      <CardTitle className="text-xl font-display text-primary">Track Your Journey</CardTitle>
+                      <div className="w-10 h-10 rounded-xl bg-background border border-primary/10 flex items-center justify-center mb-2 shadow-sm">
+                        <TrendingUp className="w-5 h-5 text-primary" />
+                      </div>
+                      <CardTitle className="text-xl font-display text-primary">Your Growth Story</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-muted-foreground leading-relaxed">
-                        Sign in to save your mood logs, track your emotional trends over time, and see your personal growth.
+                        Connect your entries to visualize patterns, earn wellness badges, and see how far you've come.
                       </p>
-                      <Button asChild variant="outline" className="w-full border-primary/20 hover:bg-primary/5 hover:text-primary transition-all">
+                      <Button asChild variant="outline" className="w-full border-primary/20 hover:bg-primary hover:text-white transition-all duration-300">
                         <Link to="/login">
-                          Join MindHaven
+                          Start Your Journey
                           <ArrowRight className="ml-2 w-4 h-4" />
                         </Link>
                       </Button>
