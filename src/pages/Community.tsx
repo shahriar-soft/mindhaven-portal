@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle, Share2, Trash2 } from "lucide-react";
+import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle, Share2, Trash2, Trophy, PartyPopper } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -31,6 +31,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import confetti from "canvas-confetti";
+import { cn } from "@/lib/utils";
 
 interface Pledge {
   id: string;
@@ -64,6 +66,8 @@ export default function Community() {
   const [newPledge, setNewPledge] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [togglingPledgeId, setTogglingPledgeId] = useState<string | null>(null);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
   
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -211,7 +215,14 @@ export default function Community() {
   const handleToggleStatus = async (pledge: Pledge) => {
     if (pledge.user_id !== user?.id) return;
 
+    setTogglingPledgeId(pledge.id);
     const newStatus = pledge.status === "active" ? "completed" : "active";
+
+    // Check for first completion
+    const isFirstCompletion =
+      newStatus === "completed" &&
+      pledges.filter(p => p.user_id === user?.id && p.status === "completed").length === 0;
+
     const { error } = await supabase
       .from("pledges")
       .update({ status: newStatus })
@@ -223,7 +234,30 @@ export default function Community() {
         description: "Please try again.",
         variant: "destructive",
       });
+    } else {
+      // Optimistic update
+      setPledges((prev) =>
+        prev.map((p) => (p.id === pledge.id ? { ...p, status: newStatus } : p))
+      );
+
+      toast({
+        title: newStatus === "completed" ? "Pledge Completed! 🎉" : "Pledge Re-activated",
+        description: newStatus === "completed"
+          ? "Amazing job on fulfilling your commitment!"
+          : "Your pledge is now active again.",
+      });
+
+      if (isFirstCompletion) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#0EA5E9', '#22C55E', '#F59E0B']
+        });
+        setTimeout(() => setShowRewardDialog(true), 500);
+      }
     }
+    setTogglingPledgeId(null);
   };
 
   const handleDeletePledge = async (pledgeId: string) => {
@@ -247,6 +281,9 @@ export default function Community() {
   };
 
   const handleSendSupport = (pledgeId: string) => {
+    setPledges(prev => prev.map(p =>
+      p.id === pledgeId ? { ...p, support_count: (p.support_count || 0) + 1 } : p
+    ));
     toast({
       title: "Support Sent! ❤️",
       description: "You've sent encouragement to this community member.",
@@ -402,7 +439,15 @@ export default function Community() {
                 ) : (
                   <div className="space-y-4">
                     {filteredPledges.map((pledge) => (
-                      <Card key={pledge.id} className="shadow-soft hover:shadow-card transition-all duration-300 animate-fade-in border-l-4 border-l-transparent hover:border-l-primary/40">
+                      <Card
+                        key={pledge.id}
+                        className={cn(
+                          "shadow-soft hover:shadow-card transition-all duration-300 animate-fade-in border-l-4",
+                          pledge.status === "completed"
+                            ? "border-l-success bg-success/5"
+                            : "border-l-transparent hover:border-l-primary/40"
+                        )}
+                      >
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -438,8 +483,13 @@ export default function Community() {
                                 onClick={() => handleSendSupport(pledge.id)}
                                 className="h-8 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
                               >
-                                <Heart className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                <span className="text-xs font-medium">Support</span>
+                                <Heart className={cn(
+                                  "w-4 h-4 group-hover:scale-110 transition-transform",
+                                  (pledge.support_count || 0) > 0 && "fill-primary text-primary"
+                                )} />
+                                <span className="text-xs font-medium">
+                                  {(pledge.support_count || 0) > 0 ? pledge.support_count : "Support"}
+                                </span>
                               </Button>
                               <Button
                                 variant="ghost"
@@ -484,10 +534,18 @@ export default function Community() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  disabled={togglingPledgeId === pledge.id}
                                   onClick={() => handleToggleStatus(pledge)}
-                                  className="h-8 gap-2 text-primary hover:bg-primary/5 font-medium transition-all"
+                                  className={cn(
+                                    "h-8 gap-2 font-medium transition-all",
+                                    pledge.status === "completed"
+                                      ? "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                      : "text-primary hover:bg-primary/5"
+                                  )}
                                 >
-                                  {pledge.status === "completed" ? (
+                                  {togglingPledgeId === pledge.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : pledge.status === "completed" ? (
                                     <>
                                       <Circle className="w-4 h-4" />
                                       Re-activate
@@ -522,21 +580,29 @@ export default function Community() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-2">
                       <div className="space-y-1">
-                        <p className="text-2xl font-bold text-primary tracking-tight">
+                        <p className="text-xl font-bold text-primary tracking-tight">
                           {isLoading ? "..." : pledges.length}
                         </p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
-                          Pledges Made
+                        <p className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Pledges
                         </p>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-2xl font-bold text-success tracking-tight">
+                        <p className="text-xl font-bold text-success tracking-tight">
                           {isLoading ? "..." : pledges.filter(p => p.status === 'completed').length}
                         </p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
-                          Goals Reached
+                        <p className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Goals
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xl font-bold text-accent-foreground tracking-tight">
+                          {isLoading ? "..." : pledges.reduce((acc, p) => acc + (p.support_count || 0), 0)}
+                        </p>
+                        <p className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Support
                         </p>
                       </div>
                     </div>
@@ -684,6 +750,40 @@ export default function Community() {
           </div>
         </div>
       </div>
+
+      {/* First Completion Reward Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mb-4">
+              <Trophy className="w-8 h-8 text-success" />
+            </div>
+            <DialogTitle className="text-center text-2xl">First Milestone Reached!</DialogTitle>
+            <DialogDescription className="text-center text-lg pt-2">
+              Congratulations! You've completed your first community pledge.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-primary/5 p-6 rounded-xl border border-primary/10 text-center space-y-3">
+            <div className="flex justify-center">
+              <div className="bg-background p-3 rounded-lg shadow-sm border border-primary/20">
+                <PartyPopper className="w-10 h-10 text-primary" />
+              </div>
+            </div>
+            <h4 className="font-bold text-foreground">Community Contributor Badge</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              You've taken a significant step in your journey. This badge recognizes your commitment to positive change.
+            </p>
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              onClick={() => setShowRewardDialog(false)}
+              className="w-full sm:w-auto px-12"
+            >
+              Continue Journey
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
