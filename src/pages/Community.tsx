@@ -17,8 +17,20 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle } from "lucide-react";
+import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle, Share2, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Pledge {
   id: string;
@@ -26,6 +38,7 @@ interface Pledge {
   pledge_title: string;
   status: string;
   created_at: string;
+  support_count?: number;
   profiles?: {
     username: string | null;
     avatar_url: string | null;
@@ -55,7 +68,7 @@ export default function Community() {
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "completed" | "mine">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -119,6 +132,7 @@ export default function Community() {
 
       const pledgesWithProfiles = (pledgesData || []).map(p => ({
         ...p,
+        support_count: 0,
         profiles: profilesMap[p.user_id] || null
       }));
 
@@ -212,10 +226,38 @@ export default function Community() {
     }
   };
 
+  const handleDeletePledge = async (pledgeId: string) => {
+    const { error } = await supabase
+      .from("pledges")
+      .delete()
+      .eq("id", pledgeId);
+
+    if (error) {
+      toast({
+        title: "Failed to delete",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Pledge deleted",
+        description: "Your pledge has been removed.",
+      });
+    }
+  };
+
   const handleSendSupport = (pledgeId: string) => {
     toast({
       title: "Support Sent! ❤️",
       description: "You've sent encouragement to this community member.",
+    });
+  };
+
+  const handleShare = (pledge: Pledge) => {
+    navigator.clipboard.writeText(`Check out this pledge on MindHaven: "${pledge.pledge_title}"`);
+    toast({
+      title: "Link copied!",
+      description: "Pledge shared to your clipboard.",
     });
   };
 
@@ -231,10 +273,10 @@ export default function Community() {
   };
 
   const filteredPledges = pledges.filter((pledge) => {
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "active" && pledge.status === "active") ||
-      (filter === "completed" && pledge.status === "completed");
+    let matchesFilter = true;
+    if (filter === "active") matchesFilter = pledge.status === "active";
+    else if (filter === "completed") matchesFilter = pledge.status === "completed";
+    else if (filter === "mine") matchesFilter = pledge.user_id === user?.id;
 
     const matchesSearch =
       pledge.pledge_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -296,13 +338,9 @@ export default function Community() {
                   </Button>
                   {user && (
                     <Button
-                      variant="ghost"
+                      variant={filter === "mine" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => {
-                        setFilter("all");
-                        setSearchQuery(profile?.username || "Anonymous");
-                      }}
-                      className="text-xs text-muted-foreground ml-auto"
+                      onClick={() => setFilter("mine")}
                     >
                       My Pledges
                     </Button>
@@ -313,94 +351,155 @@ export default function Community() {
                 {isLoading ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map((i) => (
-                      <Card key={i} className="shadow-soft">
+                      <Card key={i} className="shadow-soft border-l-4 border-l-muted/20">
                         <CardContent className="p-6">
-                          <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-3 mb-4">
                             <Skeleton className="h-10 w-10 rounded-full" />
-                            <div>
-                              <Skeleton className="h-4 w-24 mb-1" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-24" />
                               <Skeleton className="h-3 w-16" />
                             </div>
                           </div>
-                          <Skeleton className="h-16 w-full" />
+                          <Skeleton className="h-20 w-full mb-6" />
+                          <div className="flex justify-between items-center pt-2 border-t border-muted/10">
+                            <div className="flex gap-2">
+                              <Skeleton className="h-8 w-24" />
+                              <Skeleton className="h-8 w-8" />
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
                 ) : filteredPledges.length === 0 ? (
-                  <Card className="shadow-soft">
-                    <CardContent className="p-12 text-center">
-                      <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                        <Heart className="w-8 h-8 text-muted-foreground" />
+                  <Card className="shadow-soft border-dashed border-2 bg-muted/5">
+                    <CardContent className="p-16 text-center">
+                      <div className="w-20 h-20 rounded-full bg-primary/5 mx-auto mb-6 flex items-center justify-center animate-pulse">
+                        <Heart className="w-10 h-10 text-primary/40" />
                       </div>
-                      <h3 className="font-display font-semibold text-lg mb-2">
-                        {searchQuery ? "No matching pledges" : "No pledges yet"}
+                      <h3 className="font-display font-bold text-2xl mb-3 text-foreground">
+                        {searchQuery ? "No matches found" : "Start the Movement"}
                       </h3>
-                      <p className="text-muted-foreground mb-4">
+                      <p className="text-muted-foreground mb-8 max-w-sm mx-auto leading-relaxed">
                         {searchQuery
-                          ? "Try adjusting your search or filters."
-                          : "Be the first to make a mental health commitment!"}
+                          ? `We couldn't find any pledges matching "${searchQuery}". Try broadening your search or clearing filters.`
+                          : "This space is waiting for your first commitment. Every journey begins with a single step."}
                       </p>
-                      {searchQuery && (
-                        <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
-                          Clear Search
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-center gap-4">
+                        {searchQuery ? (
+                          <Button variant="outline" onClick={() => {setSearchQuery(""); setFilter("all");}}>
+                            Clear All Filters
+                          </Button>
+                        ) : (
+                          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+                            <Plus className="w-4 h-4" />
+                            Make the First Pledge
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-4">
                     {filteredPledges.map((pledge) => (
-                      <Card key={pledge.id} className="shadow-soft hover:shadow-card transition-shadow animate-fade-in">
+                      <Card key={pledge.id} className="shadow-soft hover:shadow-card transition-all duration-300 animate-fade-in border-l-4 border-l-transparent hover:border-l-primary/40">
                         <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <span className="font-semibold text-primary">
+                              <Avatar className="h-10 w-10 border border-primary/10">
+                                <AvatarImage src={pledge.profiles?.avatar_url || ""} alt={pledge.profiles?.username || "User"} />
+                                <AvatarFallback className="bg-primary/5 text-primary font-semibold">
                                   {pledge.profiles?.username?.[0]?.toUpperCase() || "U"}
-                                </span>
-                              </div>
+                                </AvatarFallback>
+                              </Avatar>
                               <div>
-                                <p className="font-medium text-sm">
+                                <p className="font-semibold text-sm text-foreground">
                                   {pledge.profiles?.username || "Anonymous"}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[10px] text-muted-foreground">
                                   {formatDistanceToNow(new Date(pledge.created_at), { addSuffix: true })}
                                 </p>
                               </div>
                             </div>
                             {getStatusBadge(pledge.status)}
                           </div>
-                          <p className="text-foreground mb-4">{pledge.pledge_title}</p>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSendSupport(pledge.id)}
-                              className="gap-2 text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <Heart className="w-4 h-4" />
-                              Send Support
-                            </Button>
-                            {pledge.user_id === user?.id && (
+
+                          <div className="pl-1">
+                            <p className="text-foreground leading-relaxed mb-6 italic text-lg font-medium opacity-90">
+                              "{pledge.pledge_title}"
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-muted/30">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleToggleStatus(pledge)}
-                                className="gap-2 ml-auto"
+                                onClick={() => handleSendSupport(pledge.id)}
+                                className="h-8 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
                               >
-                                {pledge.status === "completed" ? (
-                                  <>
-                                    <Circle className="w-4 h-4" />
-                                    Mark as Active
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4" />
-                                    Mark as Complete
-                                  </>
-                                )}
+                                <Heart className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Support</span>
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleShare(pledge)}
+                                className="h-8 px-2 text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <Share2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            {pledge.user_id === user?.id && (
+                              <div className="flex items-center gap-2">
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Pledge?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently remove your pledge from the community.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePledge(pledge.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleStatus(pledge)}
+                                  className="h-8 gap-2 text-primary hover:bg-primary/5 font-medium transition-all"
+                                >
+                                  {pledge.status === "completed" ? (
+                                    <>
+                                      <Circle className="w-4 h-4" />
+                                      Re-activate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" />
+                                      Complete
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </CardContent>
@@ -412,6 +511,38 @@ export default function Community() {
 
               {/* Sidebar */}
               <div className="space-y-6">
+                {/* Community Impact Card */}
+                <Card className="shadow-soft overflow-hidden border-none bg-gradient-to-br from-primary/5 to-secondary/5">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Users className="w-4 h-4 text-primary" />
+                      </div>
+                      <CardTitle className="text-lg font-display">Community Impact</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-2xl font-bold text-primary tracking-tight">
+                          {isLoading ? "..." : pledges.length}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Pledges Made
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-2xl font-bold text-success tracking-tight">
+                          {isLoading ? "..." : pledges.filter(p => p.status === 'completed').length}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">
+                          Goals Reached
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Create Pledge Card */}
                 <Card className="shadow-card gradient-primary text-primary-foreground overflow-hidden">
                   <CardContent className="p-6">
@@ -478,15 +609,18 @@ export default function Community() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
                       {trendingTopics.map((topic) => (
                         <button
                           key={topic.tag}
-                          onClick={() => setSearchQuery(topic.tag)}
-                          className="w-full flex items-center justify-between hover:bg-muted/50 p-1 rounded-md transition-colors"
+                          onClick={() => {
+                            setSearchQuery(topic.tag);
+                            if (filter === "mine") setFilter("all");
+                          }}
+                          className="px-3 py-1.5 rounded-full bg-secondary/10 hover:bg-primary/10 border border-primary/5 transition-colors flex items-center gap-2 group"
                         >
-                          <span className="text-primary font-medium text-sm">{topic.tag}</span>
-                          <span className="text-xs text-muted-foreground">{topic.count}</span>
+                          <span className="text-primary font-medium text-xs group-hover:underline">{topic.tag}</span>
+                          <span className="text-[10px] text-muted-foreground/60">{topic.count}</span>
                         </button>
                       ))}
                     </div>
@@ -494,19 +628,19 @@ export default function Community() {
                 </Card>
 
                 {/* Guidelines */}
-                <Card className="shadow-soft">
-                  <CardHeader className="pb-3">
+                <Card className="shadow-soft border-none bg-success/5">
+                  <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4 text-success" />
-                      <CardTitle className="text-lg font-display">Guidelines</CardTitle>
+                      <CardTitle className="text-lg font-display">Community Guidelines</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {guidelines.map((guideline) => (
+                    <div className="space-y-3">
+                      {guidelines.slice(0, 2).map((guideline) => (
                         <div key={guideline.title}>
-                          <p className="font-medium text-sm text-foreground">{guideline.title}</p>
-                          <p className="text-xs text-muted-foreground">{guideline.description}</p>
+                          <p className="font-semibold text-xs text-foreground">{guideline.title}</p>
+                          <p className="text-[11px] text-muted-foreground leading-snug">{guideline.description}</p>
                         </div>
                       ))}
                     </div>
