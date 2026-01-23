@@ -45,6 +45,14 @@ const analysisSteps = [
   { icon: Lightbulb, label: "Personalized Insights", description: "Strategies & Support" },
 ];
 
+const moodOptions = [
+  { emoji: "😊", label: "Happy", color: "bg-green-50 text-green-700 border-green-200", prompts: ["What's making you feel good today?", "How can you share this joy?"] },
+  { emoji: "😔", label: "Sad", color: "bg-blue-50 text-blue-700 border-blue-200", prompts: ["What's on your mind?", "What do you need right now?"] },
+  { emoji: "😰", label: "Anxious", color: "bg-purple-50 text-purple-700 border-purple-200", prompts: ["What's causing you worry?", "What's within your control?"] },
+  { emoji: "😫", label: "Stressed", color: "bg-orange-50 text-orange-700 border-orange-200", prompts: ["What's feeling heavy right now?", "What can you let go of?"] },
+  { emoji: "😌", label: "Calm", color: "bg-teal-50 text-teal-700 border-teal-200", prompts: ["What's helping you stay grounded?", "How does this peace feel?"] },
+];
+
 const journalingPrompts = [
   "How has your energy level been today?",
   "What's one thing that made you smile recently?",
@@ -94,6 +102,8 @@ export default function MoodAnalyzer() {
   const [randomQuote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)]);
   const [visiblePrompts, setVisiblePrompts] = useState<string[]>([]);
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [activeFocus, setActiveFocus] = useState<number | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -106,9 +116,16 @@ export default function MoodAnalyzer() {
     shufflePrompts();
   }, [user]);
 
-  const shufflePrompts = () => {
-    const shuffled = [...journalingPrompts].sort(() => 0.5 - Math.random());
+  const shufflePrompts = (moodPrompts?: string[]) => {
+    const basePrompts = moodPrompts || journalingPrompts;
+    const shuffled = [...basePrompts].sort(() => 0.5 - Math.random());
     setVisiblePrompts(shuffled.slice(0, 2));
+  };
+
+  const handleMoodSelect = (mood: typeof moodOptions[0]) => {
+    setSelectedMood(mood.label);
+    shufflePrompts(mood.prompts);
+    setMoodText(""); // Optional: clear or keep? Let's clear to focus on the new mood prompts
   };
 
   const fetchHistory = async () => {
@@ -210,10 +227,10 @@ export default function MoodAnalyzer() {
   };
 
   const getMoodLabel = (score: number) => {
-    if (score <= 3) return { label: "Needs Support", color: "bg-destructive text-destructive-foreground" };
-    if (score <= 5) return { label: "Struggling", color: "bg-warning text-warning-foreground" };
-    if (score <= 7) return { label: "Neutral", color: "bg-muted text-muted-foreground" };
-    return { label: "Thriving", color: "bg-success text-success-foreground" };
+    if (score <= 3) return { label: "Needs Support", color: "bg-destructive/10 text-destructive border-destructive/20" };
+    if (score <= 5) return { label: "Struggling", color: "bg-warning/10 text-warning border-warning/20" };
+    if (score <= 7) return { label: "Neutral", color: "bg-muted text-muted-foreground border-muted-foreground/20" };
+    return { label: "Thriving", color: "bg-success/10 text-success border-success/20" };
   };
 
   const chartData = [...history].reverse().map(log => ({
@@ -225,7 +242,7 @@ export default function MoodAnalyzer() {
     <Layout>
       <div className="min-h-[calc(100vh-8rem)] py-12">
         {/* Header Gradient */}
-        <div className="absolute top-16 left-0 right-0 h-32 gradient-calm opacity-50 -z-10" />
+        <div className="absolute top-16 left-0 right-0 h-64 gradient-calm opacity-30 -z-10" />
 
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto">
@@ -245,6 +262,27 @@ export default function MoodAnalyzer() {
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {/* Mood Selector */}
+                    <div className="space-y-3">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">How are you feeling?</span>
+                      <div className="flex flex-wrap gap-3">
+                        {moodOptions.map((mood) => (
+                          <button
+                            key={mood.label}
+                            onClick={() => handleMoodSelect(mood)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:shadow-sm ${
+                              selectedMood === mood.label
+                                ? `${mood.color} ring-2 ring-primary/20 scale-105`
+                                : "bg-background border-muted-foreground/20 hover:border-primary/50"
+                            }`}
+                          >
+                            <span className="text-xl">{mood.emoji}</span>
+                            <span className="text-sm font-medium">{mood.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Journaling Prompts */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
@@ -264,11 +302,11 @@ export default function MoodAnalyzer() {
                           <button
                             key={prompt}
                             onClick={() => setMoodText(prompt)}
-                            className="text-left p-3 rounded-lg border border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5 transition-all text-sm text-muted-foreground hover:text-primary group animate-in fade-in duration-500"
+                            className="text-left p-3 rounded-xl border border-primary/10 bg-primary/5 hover:bg-primary/10 hover:border-primary/30 transition-all text-sm text-muted-foreground hover:text-primary group animate-in fade-in duration-500"
                           >
-                            <div className="flex items-center gap-2">
-                              <MessageSquare className="w-4 h-4" />
-                              <span>{prompt}</span>
+                            <div className="flex items-center gap-3">
+                              <MessageSquare className="w-4 h-4 text-primary/50 group-hover:text-primary" />
+                              <span className="leading-tight">{prompt}</span>
                             </div>
                           </button>
                         ))}
@@ -326,7 +364,7 @@ export default function MoodAnalyzer() {
                           </>
                         ) : (
                           <>
-                            <Sparkles className="mr-2 h-4 w-4" />
+                            <Sparkles className="mr-2 h-4 w-4 animate-float" />
                             Analyze My Mood
                           </>
                         )}
@@ -346,6 +384,22 @@ export default function MoodAnalyzer() {
                             AI Insights
                           </CardTitle>
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setAiResponse(null);
+                                setMoodText("");
+                                setSelectedMood(null);
+                                setActiveFocus(null);
+                                setCurrentStep(0);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="h-8 text-xs text-muted-foreground hover:text-primary"
+                            >
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              New Entry
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -382,24 +436,57 @@ export default function MoodAnalyzer() {
                             </Badge>
                           ))}
                         </div>
-                        <div className="relative">
-                          <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                        <div className="relative bg-muted/30 p-4 rounded-xl border border-muted-foreground/10">
+                          <Quote className="absolute -top-2 -left-2 w-6 h-6 text-primary/10" />
+                          <p className="text-foreground leading-relaxed whitespace-pre-wrap italic">
                             {aiResponse.insight}
                           </p>
                         </div>
                       </div>
 
                       <div className="space-y-4 pt-4 border-t">
-                        <h4 className="font-semibold flex items-center gap-2">
-                          <Lightbulb className="w-4 h-4 text-warning" />
-                          Actionable Strategies
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold flex items-center gap-2">
+                            <Lightbulb className="w-4 h-4 text-warning" />
+                            Actionable Strategies
+                          </h4>
+                          {activeFocus !== null && (
+                            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+                              Focused on tip #{activeFocus + 1}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           {aiResponse.tips.map((tip, i) => (
-                            <div key={i} className="p-4 rounded-xl bg-muted/50 text-sm border hover:border-primary/30 transition-colors">
-                              <span className="font-bold text-primary mr-2">{i + 1}.</span>
+                            <button
+                              key={i}
+                              onClick={() => {
+                                setActiveFocus(i === activeFocus ? null : i);
+                                if (i !== activeFocus) {
+                                  toast({
+                                    title: "Focus Set",
+                                    description: "Great! Try focusing on this one thing today.",
+                                  });
+                                }
+                              }}
+                              className={`p-4 rounded-xl text-left text-sm border transition-all relative group ${
+                                activeFocus === i
+                                  ? "border-primary bg-primary/5 shadow-sm scale-[1.02]"
+                                  : "bg-muted/50 hover:border-primary/30"
+                              }`}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <span className={`font-bold ${activeFocus === i ? "text-primary" : "text-muted-foreground"}`}>
+                                  {i + 1}.
+                                </span>
+                                {activeFocus === i ? (
+                                  <CheckCircle className="w-4 h-4 text-primary" />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border border-muted-foreground/30 group-hover:border-primary/50 transition-colors" />
+                                )}
+                              </div>
                               {tip}
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -418,16 +505,16 @@ export default function MoodAnalyzer() {
               {/* Sidebar */}
               <div className="space-y-6">
                 {!user && (
-                  <Card className="shadow-soft bg-primary text-primary-foreground overflow-hidden relative">
-                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                  <Card className="shadow-soft bg-muted/30 border-primary/10 overflow-hidden relative">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
                     <CardHeader>
-                      <CardTitle className="text-xl font-display">Track Your Journey</CardTitle>
+                      <CardTitle className="text-xl font-display text-primary">Track Your Journey</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm text-primary-foreground/90 leading-relaxed">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
                         Sign in to save your mood logs, track your emotional trends over time, and see your personal growth.
                       </p>
-                      <Button asChild variant="secondary" className="w-full bg-white text-primary hover:bg-white/90">
+                      <Button asChild variant="outline" className="w-full border-primary/20 hover:bg-primary/5 hover:text-primary transition-all">
                         <Link to="/login">
                           Join MindHaven
                           <ArrowRight className="ml-2 w-4 h-4" />
@@ -496,7 +583,7 @@ export default function MoodAnalyzer() {
                                     <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                                       {format(new Date(log.created_at), "MMM d, h:mm a")}
                                     </span>
-                                    <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getMoodLabel(log.mood_score).color} border-0 text-white`}>
+                                    <Badge variant="outline" className={`text-[10px] h-4 px-1 ${getMoodLabel(log.mood_score).color} border`}>
                                       {log.mood_score}/10
                                     </Badge>
                                   </div>
@@ -567,9 +654,11 @@ export default function MoodAnalyzer() {
                 )}
 
                 {/* Mindfulness Quote */}
-                <Card className="shadow-soft bg-primary/5 border-none">
-                  <CardContent className="p-6">
-                    <Quote className="w-8 h-8 text-primary/20 mb-2" />
+                <Card className="shadow-soft bg-gradient-to-br from-primary/5 to-primary/10 border-none relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-10">
+                    <Quote className="w-12 h-12" />
+                  </div>
+                  <CardContent className="p-6 relative">
                     <p className="text-sm font-medium text-primary/80 leading-relaxed italic">
                       "{randomQuote}"
                     </p>
