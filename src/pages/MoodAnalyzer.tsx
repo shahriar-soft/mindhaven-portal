@@ -21,13 +21,23 @@ import {
   RefreshCw,
   XCircle,
   Copy,
-  Check
+  Check,
+  Info,
+  ShieldCheck,
+  BrainCircuit,
+  HelpCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   LineChart,
   Line,
@@ -46,11 +56,41 @@ const analysisSteps = [
 ];
 
 const moodOptions = [
-  { emoji: "😊", label: "Happy", color: "bg-green-50 text-green-700 border-green-200", prompts: ["What's making you feel good today?", "How can you share this joy?"] },
-  { emoji: "😔", label: "Sad", color: "bg-blue-50 text-blue-700 border-blue-200", prompts: ["What's on your mind?", "What do you need right now?"] },
-  { emoji: "😰", label: "Anxious", color: "bg-purple-50 text-purple-700 border-purple-200", prompts: ["What's causing you worry?", "What's within your control?"] },
-  { emoji: "😫", label: "Stressed", color: "bg-orange-50 text-orange-700 border-orange-200", prompts: ["What's feeling heavy right now?", "What can you let go of?"] },
-  { emoji: "😌", label: "Calm", color: "bg-teal-50 text-teal-700 border-teal-200", prompts: ["What's helping you stay grounded?", "How does this peace feel?"] },
+  {
+    emoji: "😊",
+    label: "Happy",
+    color: "bg-green-50 text-green-700 border-green-200",
+    prompts: ["What's making you feel good today?", "How can you share this joy?"],
+    placeholder: "What's making you feel good today? Share your joy..."
+  },
+  {
+    emoji: "😔",
+    label: "Sad",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    prompts: ["What's on your mind?", "What do you need right now?"],
+    placeholder: "It's okay to not be okay. What's on your mind?"
+  },
+  {
+    emoji: "😰",
+    label: "Anxious",
+    color: "bg-purple-50 text-purple-700 border-purple-200",
+    prompts: ["What's causing you worry?", "What's within your control?"],
+    placeholder: "Take a deep breath. What's causing you worry?"
+  },
+  {
+    emoji: "😫",
+    label: "Stressed",
+    color: "bg-orange-50 text-orange-700 border-orange-200",
+    prompts: ["What's feeling heavy right now?", "What can you let go of?"],
+    placeholder: "What's feeling heavy right now? Let it all out..."
+  },
+  {
+    emoji: "😌",
+    label: "Calm",
+    color: "bg-teal-50 text-teal-700 border-teal-200",
+    prompts: ["What's helping you stay grounded?", "How does this peace feel?"],
+    placeholder: "What's helping you stay grounded today?"
+  },
 ];
 
 const journalingPrompts = [
@@ -125,7 +165,7 @@ export default function MoodAnalyzer() {
   const handleMoodSelect = (mood: typeof moodOptions[0]) => {
     setSelectedMood(mood.label);
     shufflePrompts(mood.prompts);
-    setMoodText(""); // Optional: clear or keep? Let's clear to focus on the new mood prompts
+    // Removed setMoodText("") to avoid losing user input
   };
 
   const fetchHistory = async () => {
@@ -257,8 +297,8 @@ export default function MoodAnalyzer() {
                     <CardTitle className="text-2xl lg:text-3xl font-display">
                       How are you feeling today?
                     </CardTitle>
-                    <p className="text-muted-foreground">
-                      Share your thoughts, worries, or joys. Our AI is here to listen, analyze your mood, and suggest personalized coping strategies.
+                    <p className="text-muted-foreground leading-relaxed">
+                      Think of this as your safe space to vent, celebrate, or just reflect. Our AI helps you find clarity when things feel cloudy.
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -270,10 +310,10 @@ export default function MoodAnalyzer() {
                           <button
                             key={mood.label}
                             onClick={() => handleMoodSelect(mood)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:shadow-sm ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all hover:shadow-md active:scale-95 ${
                               selectedMood === mood.label
-                                ? `${mood.color} ring-2 ring-primary/20 scale-105`
-                                : "bg-background border-muted-foreground/20 hover:border-primary/50"
+                                ? `${mood.color} ring-2 ring-primary/20 scale-105 shadow-sm`
+                                : "bg-background border-muted-foreground/20 hover:border-primary/50 hover:bg-primary/5"
                             }`}
                           >
                             <span className="text-xl">{mood.emoji}</span>
@@ -283,14 +323,14 @@ export default function MoodAnalyzer() {
                       </div>
                     </div>
 
-                    {/* Journaling Prompts */}
-                    <div className="space-y-3">
+                    {/* Journaling Prompts - Collapsed if user is typing */}
+                    <div className={`space-y-3 transition-all duration-300 overflow-hidden ${moodText.length > 50 ? "max-h-0 opacity-0 mb-0" : "max-h-40 opacity-100 mb-6"}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suggested Prompts</span>
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Need inspiration?</span>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={shufflePrompts}
+                          onClick={() => shufflePrompts(selectedMood ? moodOptions.find(m => m.label === selectedMood)?.prompts : undefined)}
                           className="h-7 text-xs text-primary hover:text-primary/80"
                         >
                           <RefreshCw className="w-3 h-3 mr-1" />
@@ -315,7 +355,11 @@ export default function MoodAnalyzer() {
 
                     <div className="relative group">
                       <Textarea
-                        placeholder="I've been feeling a bit overwhelmed because..."
+                        placeholder={
+                          selectedMood
+                            ? moodOptions.find(m => m.label === selectedMood)?.placeholder
+                            : "I've been feeling a bit overwhelmed because..."
+                        }
                         value={moodText}
                         onChange={(e) => {
                           setMoodText(e.target.value);
@@ -348,14 +392,21 @@ export default function MoodAnalyzer() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Lock className="w-4 h-4" />
-                        Your entries are private & anonymous
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Lock className="w-4 h-4" />
+                          Your entries are private & anonymous
+                        </div>
+                        {moodText.length > 0 && moodText.length < 40 && !isAnalyzing && (
+                          <p className="text-xs text-primary/70 font-medium animate-pulse-soft">
+                            ✨ Share a bit more for a deeper analysis
+                          </p>
+                        )}
                       </div>
                       <Button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || !moodText.trim()}
-                        className="gradient-primary border-0 w-full sm:w-auto"
+                        className="gradient-primary border-0 w-full sm:w-auto min-w-[160px]"
                       >
                         {isAnalyzing ? (
                           <>
@@ -421,85 +472,125 @@ export default function MoodAnalyzer() {
                           </div>
                           <Progress
                             value={aiResponse.moodScore * 10}
-                            className="h-2"
+                            className={`h-2 ${
+                              aiResponse.moodScore <= 3 ? "[&>div]:bg-destructive" :
+                              aiResponse.moodScore <= 6 ? "[&>div]:bg-warning" :
+                              "[&>div]:bg-success"
+                            }`}
                           />
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="pt-6 space-y-6">
-                      <div className="space-y-4">
-                        <div className="flex flex-wrap gap-2">
-                          {aiResponse.emotions.map((emotion) => (
-                            <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize flex items-center gap-1">
-                              <span>{emotionEmojis[emotion.toLowerCase()] || "✨"}</span>
-                              {emotion}
-                            </Badge>
-                          ))}
+                    <CardContent className="pt-6 space-y-8">
+                      <div className="grid md:grid-cols-5 gap-6">
+                        <div className="md:col-span-3 space-y-4 animate-in fade-in slide-in-from-left-4 duration-500">
+                          <div className="flex flex-wrap gap-2">
+                            {aiResponse.emotions.map((emotion) => (
+                              <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize flex items-center gap-1">
+                                <span>{emotionEmojis[emotion.toLowerCase()] || "✨"}</span>
+                                {emotion}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="relative bg-muted/30 p-5 rounded-2xl border border-muted-foreground/10">
+                            <Quote className="absolute -top-3 -left-3 w-8 h-8 text-primary/10" />
+                            <p className="text-foreground leading-relaxed whitespace-pre-wrap italic">
+                              {aiResponse.insight}
+                            </p>
+                          </div>
                         </div>
-                        <div className="relative bg-muted/30 p-4 rounded-xl border border-muted-foreground/10">
-                          <Quote className="absolute -top-2 -left-2 w-6 h-6 text-primary/10" />
-                          <p className="text-foreground leading-relaxed whitespace-pre-wrap italic">
-                            {aiResponse.insight}
-                          </p>
+
+                        <div className="md:col-span-2 space-y-4 animate-in fade-in slide-in-from-right-4 duration-700">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                              <Lightbulb className="w-4 h-4 text-warning" />
+                              Personal Strategies
+                            </h4>
+                          </div>
+                          <div className="space-y-3">
+                            {aiResponse.tips.map((tip, i) => (
+                              <button
+                                key={i}
+                                onClick={() => {
+                                  setActiveFocus(i === activeFocus ? null : i);
+                                  if (i !== activeFocus) {
+                                    toast({
+                                      title: "Focus Set",
+                                      description: "Great! Try focusing on this one thing today.",
+                                    });
+                                  }
+                                }}
+                                className={`w-full p-3 rounded-xl text-left text-xs border transition-all relative group ${
+                                  activeFocus === i
+                                    ? "border-primary bg-primary/5 shadow-sm"
+                                    : "bg-muted/50 hover:border-primary/30"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <span className={`font-bold mt-0.5 ${activeFocus === i ? "text-primary" : "text-muted-foreground"}`}>
+                                    {i + 1}.
+                                  </span>
+                                  <span className="leading-relaxed">{tip}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="space-y-4 pt-4 border-t">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4 text-warning" />
-                            Actionable Strategies
-                          </h4>
-                          {activeFocus !== null && (
-                            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-                              Focused on tip #{activeFocus + 1}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {aiResponse.tips.map((tip, i) => (
-                            <button
-                              key={i}
-                              onClick={() => {
-                                setActiveFocus(i === activeFocus ? null : i);
-                                if (i !== activeFocus) {
-                                  toast({
-                                    title: "Focus Set",
-                                    description: "Great! Try focusing on this one thing today.",
-                                  });
-                                }
-                              }}
-                              className={`p-4 rounded-xl text-left text-sm border transition-all relative group ${
-                                activeFocus === i
-                                  ? "border-primary bg-primary/5 shadow-sm scale-[1.02]"
-                                  : "bg-muted/50 hover:border-primary/30"
-                              }`}
-                            >
-                              <div className="flex justify-between items-start mb-2">
-                                <span className={`font-bold ${activeFocus === i ? "text-primary" : "text-muted-foreground"}`}>
-                                  {i + 1}.
-                                </span>
-                                {activeFocus === i ? (
-                                  <CheckCircle className="w-4 h-4 text-primary" />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border border-muted-foreground/30 group-hover:border-primary/50 transition-colors" />
-                                )}
-                              </div>
-                              {tip}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="pt-4 border-t">
-                        <div className="flex items-start gap-3 bg-success/5 p-4 rounded-xl italic text-success">
-                          <Quote className="w-5 h-5 flex-shrink-0" />
-                          <p className="text-sm">{aiResponse.closing}</p>
+                      <div className="pt-6 border-t">
+                        <div className="flex items-start gap-3 bg-success/5 p-4 rounded-xl italic text-success border border-success/10">
+                          <Quote className="w-5 h-5 flex-shrink-0 opacity-50" />
+                          <p className="text-sm font-medium leading-relaxed">{aiResponse.closing}</p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 )}
+
+                <Card className="shadow-soft border-none bg-primary/5">
+                  <CardContent className="p-6">
+                    <h3 className="text-sm font-semibold mb-4 flex items-center gap-2 text-primary">
+                      <HelpCircle className="w-4 h-4" />
+                      Understanding AI Analysis
+                    </h3>
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="privacy" className="border-primary/10">
+                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-3.5 h-3.5 text-success" />
+                            Is my data private?
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                          Absolutely. Your entries are private and encrypted. We use them only to generate your personal insights. No humans read your journals, and your data is never sold.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="how-it-works" className="border-primary/10">
+                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
+                          <div className="flex items-center gap-2">
+                            <BrainCircuit className="w-3.5 h-3.5 text-primary" />
+                            How does it work?
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                          Our AI uses Natural Language Processing to understand the nuances of your text, identifying emotions and patterns that might be hard to see in the moment.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="accuracy" className="border-none">
+                        <AccordionTrigger className="text-xs hover:no-underline py-2 text-foreground/80">
+                          <div className="flex items-center gap-2">
+                            <Info className="w-3.5 h-3.5 text-warning" />
+                            Is this medical advice?
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="text-xs text-muted-foreground leading-relaxed">
+                          No. MindHaven is a supportive wellness tool for self-reflection. It's not a substitute for professional mental health care or diagnosis.
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Sidebar */}
