@@ -17,9 +17,20 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle, Share2 } from "lucide-react";
+import { Heart, Users, TrendingUp, Shield, Plus, Loader2, CheckCircle, Circle, Share2, Trash2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Pledge {
   id: string;
@@ -215,12 +226,27 @@ export default function Community() {
     }
   };
 
+  const handleDeletePledge = async (pledgeId: string) => {
+    const { error } = await supabase
+      .from("pledges")
+      .delete()
+      .eq("id", pledgeId);
+
+    if (error) {
+      toast({
+        title: "Failed to delete",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Pledge deleted",
+        description: "Your pledge has been removed.",
+      });
+    }
+  };
+
   const handleSendSupport = (pledgeId: string) => {
-    setPledges(prev => prev.map(p =>
-      p.id === pledgeId
-        ? { ...p, support_count: (p.support_count || 0) + 1 }
-        : p
-    ));
     toast({
       title: "Support Sent! ❤️",
       description: "You've sent encouragement to this community member.",
@@ -413,7 +439,7 @@ export default function Community() {
                                 className="h-8 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
                               >
                                 <Heart className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                <span className="text-xs font-medium">{pledge.support_count || 0} Supports</span>
+                                <span className="text-xs font-medium">Support</span>
                               </Button>
                               <Button
                                 variant="ghost"
@@ -426,24 +452,54 @@ export default function Community() {
                             </div>
 
                             {pledge.user_id === user?.id && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleToggleStatus(pledge)}
-                                className="h-8 gap-2 text-primary hover:bg-primary/5 font-medium transition-all"
-                              >
-                                {pledge.status === "completed" ? (
-                                  <>
-                                    <Circle className="w-4 h-4" />
-                                    Re-activate
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4" />
-                                    Complete
-                                  </>
-                                )}
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Pledge?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently remove your pledge from the community.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePledge(pledge.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleStatus(pledge)}
+                                  className="h-8 gap-2 text-primary hover:bg-primary/5 font-medium transition-all"
+                                >
+                                  {pledge.status === "completed" ? (
+                                    <>
+                                      <Circle className="w-4 h-4" />
+                                      Re-activate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" />
+                                      Complete
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </CardContent>
