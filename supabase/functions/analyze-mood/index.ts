@@ -27,15 +27,16 @@ serve(async (req) => {
 
     const systemPrompt = `You are a compassionate mental health support AI assistant for MindHaven. Your role is to:
 1. Acknowledge and validate the user's feelings with empathy
-2. Provide 3 personalized, actionable coping strategies or tips
-3. Offer encouragement and hope
+2. Identify 2-3 key emotions present in the text
+3. Provide 3 personalized, actionable coping strategies or tips
+4. Offer encouragement and hope
 
 Guidelines:
 - Be warm, understanding, and non-judgmental
-- Keep responses concise but meaningful (around 150-200 words)
+- Keep the main insight concise but meaningful (around 100-150 words)
 - Focus on evidence-based techniques like mindfulness, breathing exercises, cognitive reframing
 - If the user expresses severe distress or mentions self-harm, gently encourage seeking professional help
-- End with an uplifting note
+- Use a supportive closing sentence
 
 Also, analyze the mood and provide a score from 1-10 where:
 1-3 = distressed/low
@@ -43,10 +44,13 @@ Also, analyze the mood and provide a score from 1-10 where:
 6-7 = neutral/okay
 8-10 = positive/thriving
 
-Format your response as JSON with this structure:
+Format your response as a valid JSON object with EXACTLY these keys:
 {
-  "response": "Your empathetic response with 3 tips",
-  "moodScore": <number 1-10>
+  "insight": "Your empathetic analysis and validation (string)",
+  "moodScore": <number 1-10>,
+  "emotions": ["emotion1", "emotion2"],
+  "tips": ["Tip 1", "Tip 2", "Tip 3"],
+  "closing": "One-sentence uplifting closing (string)"
 }`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -110,8 +114,11 @@ Format your response as JSON with this structure:
 
     return new Response(
       JSON.stringify({
-        aiResponse: parsedResponse.response,
-        moodScore: parsedResponse.moodScore,
+        insight: parsedResponse.insight || parsedResponse.response || content,
+        moodScore: parsedResponse.moodScore || 5,
+        emotions: parsedResponse.emotions || ["thoughtful"],
+        tips: parsedResponse.tips || ["Take a deep breath", "Practice mindfulness", "Reach out to a friend"],
+        closing: parsedResponse.closing || "We're here for you."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
