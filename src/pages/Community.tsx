@@ -68,6 +68,7 @@ export default function Community() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [togglingPledgeId, setTogglingPledgeId] = useState<string | null>(null);
   const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [supportedPledgeIds, setSupportedPledgeIds] = useState<string[]>([]);
   
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -76,7 +77,19 @@ export default function Community() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchPledges();
+    // Load supported pledges from localStorage first
+    const savedSupports = localStorage.getItem("supported_pledges");
+    let initialSupports: string[] = [];
+    if (savedSupports) {
+      try {
+        initialSupports = JSON.parse(savedSupports);
+        setSupportedPledgeIds(initialSupports);
+      } catch (e) {
+        console.error("Failed to parse supported pledges", e);
+      }
+    }
+
+    fetchPledges(initialSupports);
     
     // Set up realtime subscription
     const channel = supabase
@@ -108,8 +121,10 @@ export default function Community() {
     };
   }, []);
 
-  const fetchPledges = async () => {
+  const fetchPledges = async (currentSupportedIds?: string[]) => {
     setIsLoading(true);
+    const idsToCheck = currentSupportedIds || supportedPledgeIds;
+
     const { data: pledgesData, error: pledgesError } = await supabase
       .from("pledges")
       .select("*")
@@ -136,7 +151,7 @@ export default function Community() {
 
       const pledgesWithProfiles = (pledgesData || []).map(p => ({
         ...p,
-        support_count: 0,
+        support_count: idsToCheck.includes(p.id) ? 1 : 0,
         profiles: profilesMap[p.user_id] || null
       }));
 
@@ -161,6 +176,7 @@ export default function Community() {
 
       const fullPledge = {
         ...pledgeData,
+        support_count: supportedPledgeIds.includes(id) ? 1 : 0,
         profiles: profileData
       };
 
@@ -281,9 +297,31 @@ export default function Community() {
   };
 
   const handleSendSupport = (pledgeId: string) => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to send support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (supportedPledgeIds.includes(pledgeId)) {
+      toast({
+        title: "Already supported",
+        description: "You've already sent encouragement to this pledge.",
+      });
+      return;
+    }
+
+    const newSupportedPledgeIds = [...supportedPledgeIds, pledgeId];
+    setSupportedPledgeIds(newSupportedPledgeIds);
+    localStorage.setItem("supported_pledges", JSON.stringify(newSupportedPledgeIds));
+
     setPledges(prev => prev.map(p =>
       p.id === pledgeId ? { ...p, support_count: (p.support_count || 0) + 1 } : p
     ));
+
     toast({
       title: "Support Sent! ❤️",
       description: "You've sent encouragement to this community member.",
@@ -441,6 +479,7 @@ export default function Community() {
                     {filteredPledges.map((pledge) => (
                       <Card
                         key={pledge.id}
+                        data-pledge-id={pledge.id}
                         className={cn(
                           "shadow-soft hover:shadow-card transition-all duration-300 animate-fade-in border-l-4",
                           pledge.status === "completed"
@@ -480,12 +519,20 @@ export default function Community() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                disabled={supportedPledgeIds.includes(pledge.id)}
                                 onClick={() => handleSendSupport(pledge.id)}
-                                className="h-8 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
+                                className={cn(
+                                  "h-8 gap-2 transition-all group",
+                                  supportedPledgeIds.includes(pledge.id)
+                                    ? "text-primary bg-primary/5 cursor-default"
+                                    : "text-muted-foreground hover:text-primary hover:bg-primary/5"
+                                )}
                               >
                                 <Heart className={cn(
                                   "w-4 h-4 group-hover:scale-110 transition-transform",
-                                  (pledge.support_count || 0) > 0 && "fill-primary text-primary"
+                                  (pledge.support_count || 0) > 0 || supportedPledgeIds.includes(pledge.id)
+                                    ? "fill-primary text-primary"
+                                    : ""
                                 )} />
                                 <span className="text-xs font-medium">
                                   {(pledge.support_count || 0) > 0 ? pledge.support_count : "Support"}
