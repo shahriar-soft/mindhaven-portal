@@ -227,20 +227,42 @@ export default function MoodAnalyzer() {
         body: { moodText: moodText.trim() },
       });
 
+      // Check for invoke-level error
       if (error) {
         throw error;
+      }
+
+      // Check for error returned in response body (edge function error with 200 status)
+      if (data?.error) {
+        // Handle specific error types
+        if (data.error.includes("Rate limit")) {
+          throw new Error("You've made too many requests. Please wait a moment and try again.");
+        }
+        if (data.error.includes("unavailable") || data.error.includes("Payment")) {
+          throw new Error("The AI service is temporarily unavailable. Please try again later.");
+        }
+        if (data.error.includes("timed out")) {
+          throw new Error("The request timed out. Please try again.");
+        }
+        throw new Error(data.error);
+      }
+
+      // Validate required fields exist before proceeding
+      if (!data?.insight || typeof data.moodScore !== 'number' || !Array.isArray(data.tips)) {
+        console.error("Incomplete AI response received:", data);
+        throw new Error("Received an incomplete response. Please try again.");
       }
 
       setCurrentStep(2);
       setAiResponse(data);
 
-      // Save to mood_logs
+      // Only save to database if we have complete, validated data
       const { error: saveError } = await supabase.from("mood_logs").insert({
         user_id: user.id,
         mood_text: moodText.trim(),
         ai_response: data.insight,
         mood_score: data.moodScore,
-        emotions: data.emotions,
+        emotions: data.emotions || [],
         tips: data.tips,
       });
 
@@ -257,7 +279,7 @@ export default function MoodAnalyzer() {
       console.error("Error analyzing mood:", error);
       toast({
         title: "Analysis failed",
-        description: "Please try again in a moment.",
+        description: error instanceof Error ? error.message : "Please try again in a moment.",
         variant: "destructive",
       });
       setCurrentStep(0);
@@ -454,13 +476,13 @@ export default function MoodAnalyzer() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => copyToClipboard(aiResponse.insight)}
+                              onClick={() => copyToClipboard(aiResponse?.insight ?? "")}
                               className="h-8 w-8 p-0"
                             >
                               {isCopied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
                             </Button>
-                            <Badge className={getMoodLabel(aiResponse.moodScore).color}>
-                              {getMoodLabel(aiResponse.moodScore).label}
+                            <Badge className={getMoodLabel(aiResponse?.moodScore ?? 5).color}>
+                              {getMoodLabel(aiResponse?.moodScore ?? 5).label}
                             </Badge>
                           </div>
                         </div>
@@ -468,13 +490,13 @@ export default function MoodAnalyzer() {
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs font-medium">
                             <span className="text-muted-foreground">Mood Score</span>
-                            <span className="text-primary">{aiResponse.moodScore}/10</span>
+                            <span className="text-primary">{aiResponse?.moodScore ?? 0}/10</span>
                           </div>
                           <Progress
-                            value={aiResponse.moodScore * 10}
+                            value={(aiResponse?.moodScore ?? 0) * 10}
                             className={`h-2 ${
-                              aiResponse.moodScore <= 3 ? "[&>div]:bg-destructive" :
-                              aiResponse.moodScore <= 6 ? "[&>div]:bg-warning" :
+                              (aiResponse?.moodScore ?? 5) <= 3 ? "[&>div]:bg-destructive" :
+                              (aiResponse?.moodScore ?? 5) <= 6 ? "[&>div]:bg-warning" :
                               "[&>div]:bg-success"
                             }`}
                           />
@@ -485,7 +507,7 @@ export default function MoodAnalyzer() {
                       <div className="grid md:grid-cols-5 gap-6">
                         <div className="md:col-span-3 space-y-4 animate-in fade-in slide-in-from-left-4 duration-500">
                           <div className="flex flex-wrap gap-2">
-                            {aiResponse.emotions.map((emotion) => (
+                            {(aiResponse?.emotions ?? []).map((emotion) => (
                               <Badge key={emotion} variant="secondary" className="bg-primary/10 text-primary border-0 capitalize flex items-center gap-1">
                                 <span>{emotionEmojis[emotion.toLowerCase()] || "✨"}</span>
                                 {emotion}
@@ -495,7 +517,7 @@ export default function MoodAnalyzer() {
                           <div className="relative bg-muted/30 p-5 rounded-2xl border border-muted-foreground/10">
                             <Quote className="absolute -top-3 -left-3 w-8 h-8 text-primary/10" />
                             <p className="text-foreground leading-relaxed whitespace-pre-wrap italic">
-                              {aiResponse.insight}
+                              {aiResponse?.insight ?? "Unable to generate insight. Please try again."}
                             </p>
                           </div>
                         </div>
@@ -508,7 +530,7 @@ export default function MoodAnalyzer() {
                             </h4>
                           </div>
                           <div className="space-y-3">
-                            {aiResponse.tips.map((tip, i) => (
+                            {(aiResponse?.tips ?? []).map((tip, i) => (
                               <button
                                 key={i}
                                 onClick={() => {
@@ -541,7 +563,7 @@ export default function MoodAnalyzer() {
                       <div className="pt-6 border-t">
                         <div className="flex items-start gap-3 bg-success/5 p-4 rounded-xl italic text-success border border-success/10">
                           <Quote className="w-5 h-5 flex-shrink-0 opacity-50" />
-                          <p className="text-sm font-medium leading-relaxed">{aiResponse.closing}</p>
+                          <p className="text-sm font-medium leading-relaxed">{aiResponse?.closing ?? "We're here for you."}</p>
                         </div>
                       </div>
                     </CardContent>
