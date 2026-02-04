@@ -25,7 +25,9 @@ import {
   Info,
   ShieldCheck,
   BrainCircuit,
-  HelpCircle
+  HelpCircle,
+  Clock,
+  AlertCircle
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +50,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { format } from "date-fns";
+import { useCooldown } from "@/hooks/useCooldown";
 
 const analysisSteps = [
   { icon: Pencil, label: "Input Thoughts", description: "Waiting for you to type..." },
@@ -148,6 +151,14 @@ export default function MoodAnalyzer() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { 
+    cooldownRemaining, 
+    canAnalyze, 
+    requestsRemaining, 
+    hourlyLimitReached, 
+    startCooldown,
+    maxRequestsPerHour 
+  } = useCooldown();
 
   useEffect(() => {
     if (user) {
@@ -218,9 +229,30 @@ export default function MoodAnalyzer() {
       return;
     }
 
+    // Check cooldown and rate limits
+    if (!canAnalyze) {
+      if (hourlyLimitReached) {
+        toast({
+          title: "Hourly limit reached",
+          description: `You've used all ${maxRequestsPerHour} analyses for this hour. Please wait and try again later.`,
+          variant: "destructive",
+        });
+      } else if (cooldownRemaining > 0) {
+        toast({
+          title: "Please wait",
+          description: `You can analyze again in ${cooldownRemaining} seconds.`,
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
     setIsAnalyzing(true);
     setCurrentStep(1);
     setAiResponse(null);
+    
+    // Start cooldown immediately
+    startCooldown();
 
     try {
       const { data, error } = await supabase.functions.invoke("analyze-mood", {
@@ -424,24 +456,57 @@ export default function MoodAnalyzer() {
                             ✨ Share a bit more for a deeper analysis
                           </p>
                         )}
-                      </div>
-                      <Button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing || !moodText.trim()}
-                        className="gradient-primary border-0 w-full sm:w-auto min-w-[160px]"
-                      >
-                        {isAnalyzing ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Analyzing...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-2 h-4 w-4 animate-float" />
-                            Analyze My Mood
-                          </>
+                        {/* Usage tracking info */}
+                        {user && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Info className="w-3 h-3" />
+                            {requestsRemaining} of {maxRequestsPerHour} analyses remaining this hour
+                          </div>
                         )}
-                      </Button>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                        {/* Cooldown indicator */}
+                        {cooldownRemaining > 0 && !isAnalyzing && (
+                          <div className="flex items-center gap-2 text-sm text-warning">
+                            <Clock className="w-4 h-4" />
+                            <span>Wait {cooldownRemaining}s</span>
+                          </div>
+                        )}
+                        {/* Hourly limit warning */}
+                        {hourlyLimitReached && (
+                          <div className="flex items-center gap-2 text-sm text-destructive">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Hourly limit reached</span>
+                          </div>
+                        )}
+                        <Button
+                          onClick={handleAnalyze}
+                          disabled={isAnalyzing || !moodText.trim() || !canAnalyze}
+                          className="gradient-primary border-0 w-full sm:w-auto min-w-[160px]"
+                        >
+                          {isAnalyzing ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : cooldownRemaining > 0 ? (
+                            <>
+                              <Clock className="mr-2 h-4 w-4" />
+                              Wait {cooldownRemaining}s
+                            </>
+                          ) : hourlyLimitReached ? (
+                            <>
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              Limit Reached
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4 animate-float" />
+                              Analyze My Mood
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
