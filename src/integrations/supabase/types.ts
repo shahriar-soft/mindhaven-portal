@@ -18,33 +18,27 @@ export type Database = {
         Row: {
           ai_response: string | null
           created_at: string
-          emotions: string[] | null
           id: string
           mood_score: number | null
           mood_text: string
-          tips: string[] | null
           updated_at: string
           user_id: string
         }
         Insert: {
           ai_response?: string | null
           created_at?: string
-          emotions?: string[] | null
           id?: string
           mood_score?: number | null
           mood_text: string
-          tips?: string[] | null
           updated_at?: string
           user_id: string
         }
         Update: {
           ai_response?: string | null
           created_at?: string
-          emotions?: string[] | null
           id?: string
           mood_score?: number | null
           mood_text?: string
-          tips?: string[] | null
           updated_at?: string
           user_id?: string
         }
